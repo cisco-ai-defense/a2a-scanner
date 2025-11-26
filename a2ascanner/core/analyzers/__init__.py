@@ -17,7 +17,7 @@
 """Analyzer module exports for A2A Scanner.
 
 This module provides access to all analyzer implementations including YARA,
-heuristic, LLM-based, spec compliance, and endpoint analyzers
+heuristic, LLM-based, meta-analysis, spec compliance, and endpoint analyzers
 for comprehensive A2A protocol threat detection.
 """
 
@@ -25,6 +25,7 @@ from .base import BaseAnalyzer, SecurityFinding
 from .yara_analyzer import YaraAnalyzer
 from .heuristic_analyzer import HeuristicAnalyzer
 from .llm_analyzer import LLMAnalyzer
+from .meta_analyzer import LLMMetaAnalyzer, MetaAnalysisResult
 
 __all__ = [
     "BaseAnalyzer",
@@ -32,4 +33,6 @@ __all__ = [
     "YaraAnalyzer",
     "HeuristicAnalyzer",
     "LLMAnalyzer",
+    "LLMMetaAnalyzer",
+    "MetaAnalysisResult",
 ]

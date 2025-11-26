@@ -119,9 +119,34 @@ def cli(ctx, debug, dev):
     is_flag=True,
     help="Disable deduplication of findings from multiple analyzers",
 )
+@click.option(
+    "--meta",
+    "-m",
+    is_flag=True,
+    help="Run LLM meta-analysis to prune false positives and prioritize findings",
+)
+@click.option(
+    "--meta-model",
+    help="LLM model for meta-analysis (defaults to A2A_SCANNER_META_LLM_MODEL or primary LLM model)",
+)
+@click.option(
+    "--meta-api-key",
+    help="API key for meta-analysis LLM (defaults to A2A_SCANNER_META_LLM_API_KEY or primary API key)",
+)
 @click.pass_context
-def scan_file(ctx, file_path, analyzers, output, format, no_deduplicate):
-    """Scan a file containing agent card or A2A protocol data."""
+def scan_file(ctx, file_path, analyzers, output, format, no_deduplicate, meta, meta_model, meta_api_key):
+    """Scan a file containing agent card or A2A protocol data.
+    
+    Use --meta to enable LLM meta-analysis which will:
+    - Identify and filter false positives
+    - Prioritize findings by actual risk
+    - Provide specific recommendations and fixes
+    
+    Meta-analysis can use a different LLM than the primary analyzer:
+    - Set A2A_SCANNER_META_LLM_MODEL for a different model
+    - Set A2A_SCANNER_META_LLM_API_KEY for a different API key
+    - Or use --meta-model and --meta-api-key flags
+    """
     print_banner()
 
     config = ctx.obj["config"]
@@ -130,6 +155,9 @@ def scan_file(ctx, file_path, analyzers, output, format, no_deduplicate):
         scanner = Scanner(config=config)
 
         console.print(f"[cyan]Scanning file: {file_path}[/cyan]\n")
+        
+        # Read file content for meta-analysis
+        file_content = Path(file_path).read_text()
 
         # Run scan
         result = await scanner.scan_file(
@@ -137,9 +165,63 @@ def scan_file(ctx, file_path, analyzers, output, format, no_deduplicate):
             analyzers=list(analyzers) if analyzers else None,
         )
 
+        meta_result = None
+        
+        # Run meta-analysis if requested
+        if meta and result.has_findings():
+            # Check for API key (meta-specific or primary)
+            effective_api_key = meta_api_key or config.meta_llm_api_key
+            if not effective_api_key:
+                console.print(
+                    "[yellow]⚠️  Meta-analysis requires LLM API key. "
+                    "Set A2A_SCANNER_META_LLM_API_KEY or A2A_SCANNER_LLM_API_KEY environment variable.[/yellow]\n"
+                )
+            else:
+                # Override config with CLI arguments if provided
+                if meta_api_key:
+                    config.meta_llm_api_key = meta_api_key
+                if meta_model:
+                    config.meta_llm_model = meta_model
+                    
+                console.print("\n[cyan]Running LLM meta-analysis...[/cyan]")
+                if meta_model:
+                    console.print(f"[dim]Using model: {meta_model}[/dim]")
+                    
+                try:
+                    meta_result = await scanner.run_meta_analysis(result, file_content)
+                    
+                    # Apply meta-analysis to get filtered results
+                    result = scanner.apply_meta_analysis(result, meta_result)
+                    
+                    # Display meta-analysis summary
+                    summary = scanner.meta_analyzer.get_summary_report(meta_result)
+                    console.print(f"\n[bold]Meta-Analysis Summary:[/bold]")
+                    console.print(f"  Original findings: {summary['total_original_findings']}")
+                    console.print(f"  Validated findings: {summary['validated_findings_count']}")
+                    console.print(f"  False positives removed: {summary['false_positives_count']}")
+                    console.print(f"  Recommendations: {summary['recommendations_count']}")
+                    
+                    risk = summary.get('overall_risk', {})
+                    if risk:
+                        risk_level = risk.get('risk_level', 'UNKNOWN')
+                        risk_style = {
+                            'HIGH': 'red bold',
+                            'MEDIUM': 'yellow',
+                            'LOW': 'green',
+                            'SAFE': 'green bold',
+                        }.get(risk_level, 'white')
+                        console.print(f"  Overall Risk: [{risk_style}]{risk_level}[/{risk_style}]")
+                    console.print()
+                    
+                except Exception as e:
+                    console.print(f"[red]Meta-analysis failed: {e}[/red]\n")
+
         # Display results based on format
         if format == "json" or format == "raw":
-            print(json.dumps(result.to_dict(), indent=2))
+            output_data = result.to_dict()
+            if meta_result:
+                output_data["meta_analysis"] = meta_result.to_dict()
+            print(json.dumps(output_data, indent=2))
         elif format == "summary":
             from .core.results import RESULT_PROCESSOR, OutputMode
 
@@ -152,11 +234,27 @@ def scan_file(ctx, file_path, analyzers, output, format, no_deduplicate):
             print(output_text)
         else:
             print_scan_result(result)
+            
+        # Display recommendations if meta-analysis was run
+        if meta_result and meta_result.recommendations:
+            console.print("\n[bold cyan]Recommendations:[/bold cyan]")
+            for i, rec in enumerate(meta_result.recommendations, 1):
+                priority = rec.get('priority', 'MEDIUM')
+                priority_style = {'HIGH': 'red bold', 'MEDIUM': 'yellow', 'LOW': 'green'}.get(priority, 'white')
+                console.print(f"\n[{priority_style}]{i}. [{priority}][/{priority_style}] {rec.get('title', 'Recommendation')}")
+                console.print(f"   {rec.get('description', '')}")
+                if rec.get('fix'):
+                    console.print(f"   [dim]Fix:[/dim]")
+                    for line in rec.get('fix', '').split('\n')[:5]:
+                        console.print(f"   [dim]{line}[/dim]")
 
         # Save to file if requested
         if output:
             output_path = Path(output)
-            output_path.write_text(json.dumps(result.to_dict(), indent=2))
+            output_data = result.to_dict()
+            if meta_result:
+                output_data["meta_analysis"] = meta_result.to_dict()
+            output_path.write_text(json.dumps(output_data, indent=2))
             console.print(f"\n[green]Results saved to: {output}[/green]\n")
 
         return result
@@ -283,9 +381,34 @@ def scan_endpoint(ctx, endpoint_url, timeout, bearer_token, no_verify_ssl, outpu
     default="table",
     help="Output format (default: table)",
 )
+@click.option(
+    "--meta",
+    "-m",
+    is_flag=True,
+    help="Run LLM meta-analysis to prune false positives and prioritize findings",
+)
+@click.option(
+    "--meta-model",
+    help="LLM model for meta-analysis (defaults to A2A_SCANNER_META_LLM_MODEL or primary LLM model)",
+)
+@click.option(
+    "--meta-api-key",
+    help="API key for meta-analysis LLM (defaults to A2A_SCANNER_META_LLM_API_KEY or primary API key)",
+)
 @click.pass_context
-def scan_card(ctx, card_file, analyzers, output, format):
-    """Scan an agent card JSON file."""
+def scan_card(ctx, card_file, analyzers, output, format, meta, meta_model, meta_api_key):
+    """Scan an agent card JSON file.
+    
+    Use --meta to enable LLM meta-analysis which will:
+    - Identify and filter false positives
+    - Prioritize findings by actual risk
+    - Provide specific recommendations and fixes
+    
+    Meta-analysis can use a different LLM than the primary analyzer:
+    - Set A2A_SCANNER_META_LLM_MODEL for a different model
+    - Set A2A_SCANNER_META_LLM_API_KEY for a different API key
+    - Or use --meta-model and --meta-api-key flags
+    """
     print_banner()
 
     config = ctx.obj["config"]
@@ -296,6 +419,7 @@ def scan_card(ctx, card_file, analyzers, output, format):
         # Load agent card
         card_path = Path(card_file)
         card_data = json.loads(card_path.read_text())
+        card_json = card_path.read_text()
 
         console.print(
             f"[cyan]Scanning agent card: {card_data.get('name', 'unknown')}[/cyan]\n"
@@ -307,10 +431,64 @@ def scan_card(ctx, card_file, analyzers, output, format):
             analyzers=list(analyzers) if analyzers else None,
         )
 
+        meta_result = None
+        
+        # Run meta-analysis if requested
+        if meta and result.has_findings():
+            # Check for API key (meta-specific or primary)
+            effective_api_key = meta_api_key or config.meta_llm_api_key
+            if not effective_api_key:
+                console.print(
+                    "[yellow]⚠️  Meta-analysis requires LLM API key. "
+                    "Set A2A_SCANNER_META_LLM_API_KEY or A2A_SCANNER_LLM_API_KEY environment variable.[/yellow]\n"
+                )
+            else:
+                # Override config with CLI arguments if provided
+                if meta_api_key:
+                    config.meta_llm_api_key = meta_api_key
+                if meta_model:
+                    config.meta_llm_model = meta_model
+                    
+                console.print("\n[cyan]Running LLM meta-analysis...[/cyan]")
+                if meta_model:
+                    console.print(f"[dim]Using model: {meta_model}[/dim]")
+                    
+                try:
+                    meta_result = await scanner.run_meta_analysis(result, card_json)
+                    
+                    # Apply meta-analysis to get filtered results
+                    result = scanner.apply_meta_analysis(result, meta_result)
+                    
+                    # Display meta-analysis summary
+                    summary = scanner.meta_analyzer.get_summary_report(meta_result)
+                    console.print(f"\n[bold]Meta-Analysis Summary:[/bold]")
+                    console.print(f"  Original findings: {summary['total_original_findings']}")
+                    console.print(f"  Validated findings: {summary['validated_findings_count']}")
+                    console.print(f"  False positives removed: {summary['false_positives_count']}")
+                    console.print(f"  Recommendations: {summary['recommendations_count']}")
+                    
+                    risk = summary.get('overall_risk', {})
+                    if risk:
+                        risk_level = risk.get('risk_level', 'UNKNOWN')
+                        risk_style = {
+                            'HIGH': 'red bold',
+                            'MEDIUM': 'yellow',
+                            'LOW': 'green',
+                            'SAFE': 'green bold',
+                        }.get(risk_level, 'white')
+                        console.print(f"  Overall Risk: [{risk_style}]{risk_level}[/{risk_style}]")
+                    console.print()
+                    
+                except Exception as e:
+                    console.print(f"[red]Meta-analysis failed: {e}[/red]\n")
+
         # Display results based on format
         if format == "json" or format == "raw":
             # JSON/RAW format - print dict
-            print(json.dumps(result.to_dict(), indent=2))
+            output_data = result.to_dict()
+            if meta_result:
+                output_data["meta_analysis"] = meta_result.to_dict()
+            print(json.dumps(output_data, indent=2))
         elif format == "summary":
             # Summary format - using result processor
             from .core.results import RESULT_PROCESSOR, OutputMode
@@ -330,11 +508,27 @@ def scan_card(ctx, card_file, analyzers, output, format):
         else:
             # Default table format
             print_scan_result(result)
+            
+        # Display recommendations if meta-analysis was run
+        if meta_result and meta_result.recommendations:
+            console.print("\n[bold cyan]Recommendations:[/bold cyan]")
+            for i, rec in enumerate(meta_result.recommendations, 1):
+                priority = rec.get('priority', 'MEDIUM')
+                priority_style = {'HIGH': 'red bold', 'MEDIUM': 'yellow', 'LOW': 'green'}.get(priority, 'white')
+                console.print(f"\n[{priority_style}]{i}. [{priority}][/{priority_style}] {rec.get('title', 'Recommendation')}")
+                console.print(f"   {rec.get('description', '')}")
+                if rec.get('fix'):
+                    console.print(f"   [dim]Fix:[/dim]")
+                    for line in rec.get('fix', '').split('\n')[:5]:
+                        console.print(f"   [dim]{line}[/dim]")
 
         # Save to file if requested
         if output:
             output_path = Path(output)
-            output_path.write_text(json.dumps(result.to_dict(), indent=2))
+            output_data = result.to_dict()
+            if meta_result:
+                output_data["meta_analysis"] = meta_result.to_dict()
+            output_path.write_text(json.dumps(output_data, indent=2))
             console.print(f"\n[green]Results saved to: {output}[/green]\n")
 
         return result

@@ -43,6 +43,12 @@ class Config:
         llm_model: Optional[str] = None,
         llm_base_url: Optional[str] = None,
         llm_api_version: Optional[str] = None,
+        # Meta-analyzer specific LLM settings (falls back to main LLM settings)
+        meta_llm_provider: Optional[str] = None,
+        meta_llm_api_key: Optional[str] = None,
+        meta_llm_model: Optional[str] = None,
+        meta_llm_base_url: Optional[str] = None,
+        meta_llm_api_version: Optional[str] = None,
         log_level: Optional[str] = None,
         max_concurrent_scans: Optional[int] = None,
         timeout: Optional[int] = None,
@@ -56,12 +62,17 @@ class Config:
             llm_model: Model name to use
             llm_base_url: Base URL for LLM API (Azure/Ollama)
             llm_api_version: API version (Azure)
+            meta_llm_provider: LLM provider for meta-analyzer (defaults to llm_provider)
+            meta_llm_api_key: API key for meta-analyzer (defaults to llm_api_key)
+            meta_llm_model: Model for meta-analyzer (defaults to llm_model)
+            meta_llm_base_url: Base URL for meta-analyzer (defaults to llm_base_url)
+            meta_llm_api_version: API version for meta-analyzer (defaults to llm_api_version)
             log_level: Logging level
             max_concurrent_scans: Maximum concurrent scans
             timeout: Request timeout in seconds
             dev_mode: Enable development mode (relaxed security checks)
         """
-        # LLM Configuration
+        # LLM Configuration (primary analyzer)
         self.llm_provider = llm_provider or os.getenv(
             "A2A_SCANNER_LLM_PROVIDER", "openai"
         )
@@ -70,6 +81,33 @@ class Config:
         self.llm_base_url = llm_base_url or os.getenv("A2A_SCANNER_LLM_BASE_URL")
         self.llm_api_version = llm_api_version or os.getenv(
             "A2A_SCANNER_LLM_API_VERSION"
+        )
+
+        # Meta-Analyzer LLM Configuration (falls back to primary LLM settings)
+        self.meta_llm_provider = (
+            meta_llm_provider
+            or os.getenv("A2A_SCANNER_META_LLM_PROVIDER")
+            or self.llm_provider
+        )
+        self.meta_llm_api_key = (
+            meta_llm_api_key
+            or os.getenv("A2A_SCANNER_META_LLM_API_KEY")
+            or self.llm_api_key
+        )
+        self.meta_llm_model = (
+            meta_llm_model
+            or os.getenv("A2A_SCANNER_META_LLM_MODEL")
+            or self.llm_model
+        )
+        self.meta_llm_base_url = (
+            meta_llm_base_url
+            or os.getenv("A2A_SCANNER_META_LLM_BASE_URL")
+            or self.llm_base_url
+        )
+        self.meta_llm_api_version = (
+            meta_llm_api_version
+            or os.getenv("A2A_SCANNER_META_LLM_API_VERSION")
+            or self.llm_api_version
         )
 
         # Scanner Configuration

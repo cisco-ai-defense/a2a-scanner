@@ -37,6 +37,7 @@ from .analyzers.heuristic_analyzer import HeuristicAnalyzer
 from .analyzers.llm_analyzer import LLMAnalyzer
 from .analyzers.endpoint_analyzer import EndpointAnalyzer
 from .analyzers.spec_analyzer import SpecComplianceAnalyzer
+from .analyzers.meta_analyzer import LLMMetaAnalyzer, MetaAnalysisResult
 from .models import ScanResult
 
 logger = get_logger(__name__)
@@ -54,6 +55,7 @@ class Scanner:
         config: Optional[Config] = None,
         custom_analyzers: Optional[List[BaseAnalyzer]] = None,
         rules_dir: Optional[str] = None,
+        enable_meta_analysis: bool = False,
     ):
         """Initialize the A2A scanner.
 
@@ -61,9 +63,12 @@ class Scanner:
             config: Configuration object. If None, creates default config.
             custom_analyzers: Optional list of custom analyzer instances.
             rules_dir: Optional custom path to YARA rules directory.
+            enable_meta_analysis: Whether to enable LLM meta-analysis by default.
         """
         self.config = config or Config()
         self.custom_analyzers = custom_analyzers or []
+        self.enable_meta_analysis = enable_meta_analysis
+        self.meta_analyzer: Optional[LLMMetaAnalyzer] = None
 
         # Initialize analyzers
         self._init_analyzers(rules_dir)
@@ -110,6 +115,14 @@ class Scanner:
                 logger.info("LLM analyzer initialized")
             except Exception as e:
                 logger.warning(f"Failed to initialize LLM analyzer: {e}")
+            
+            # Initialize LLM Meta-Analyzer if enabled
+            if self.enable_meta_analysis:
+                try:
+                    self.meta_analyzer = LLMMetaAnalyzer(self.config)
+                    logger.info("LLM Meta-Analyzer initialized")
+                except Exception as e:
+                    logger.warning(f"Failed to initialize LLM Meta-Analyzer: {e}")
         else:
             logger.info("LLM analyzer not initialized (no API key configured)")
 
@@ -453,4 +466,149 @@ class Scanner:
         Returns:
             List of analyzer names.
         """
-        return list(self.analyzers)
+        return list(self.analyzers.keys())
+
+    async def run_meta_analysis(
+        self,
+        scan_result: ScanResult,
+        original_content: Optional[str] = None,
+    ) -> MetaAnalysisResult:
+        """Run LLM meta-analysis on scan findings.
+
+        This performs a second-pass analysis using an LLM to:
+        - Identify and prune false positives
+        - Prioritize findings by actual risk
+        - Correlate related findings
+        - Provide specific recommendations and fixes
+
+        Args:
+            scan_result: The scan result containing findings to analyze
+            original_content: Optional original scanned content for context
+
+        Returns:
+            MetaAnalysisResult with validated findings and recommendations
+
+        Raises:
+            ValueError: If meta-analyzer is not initialized
+        """
+        if not self.meta_analyzer:
+            # Try to initialize on-demand if LLM API key is available
+            if self.config.llm_api_key:
+                try:
+                    self.meta_analyzer = LLMMetaAnalyzer(self.config)
+                    logger.info("LLM Meta-Analyzer initialized on-demand")
+                except Exception as e:
+                    raise ValueError(
+                        f"Failed to initialize LLM Meta-Analyzer: {e}. "
+                        "Ensure LLM API key is configured."
+                    )
+            else:
+                raise ValueError(
+                    "LLM Meta-Analyzer not available. "
+                    "Configure A2A_SCANNER_LLM_API_KEY to enable meta-analysis."
+                )
+
+        if not scan_result.findings:
+            logger.info("No findings to meta-analyze")
+            return MetaAnalysisResult(
+                overall_risk_assessment={
+                    "risk_level": "SAFE",
+                    "summary": "No security findings to analyze",
+                }
+            )
+
+        context = {
+            "target_name": scan_result.target_name,
+            "target_type": scan_result.target_type,
+            "metadata": scan_result.metadata,
+        }
+
+        # Use original content if provided, otherwise try to get from metadata
+        content = original_content or ""
+        if not content and scan_result.metadata:
+            content = scan_result.metadata.get("content", "")
+
+        logger.info(
+            f"Running meta-analysis on {len(scan_result.findings)} findings "
+            f"from {scan_result.target_name}"
+        )
+
+        return await self.meta_analyzer.analyze_findings(
+            findings=scan_result.findings,
+            original_content=content,
+            context=context,
+        )
+
+    async def scan_with_meta_analysis(
+        self,
+        card: Dict[str, Any],
+        analyzers: Optional[List[str]] = None,
+    ) -> tuple[ScanResult, MetaAnalysisResult]:
+        """Scan an agent card and run meta-analysis on findings.
+
+        This is a convenience method that combines scanning with meta-analysis
+        in a single call.
+
+        Args:
+            card: Agent card data to scan
+            analyzers: Optional list of analyzer names to use
+
+        Returns:
+            Tuple of (ScanResult, MetaAnalysisResult)
+        """
+        # Run the initial scan
+        scan_result = await self.scan_agent_card(card, analyzers)
+
+        # Run meta-analysis on findings
+        card_json = json.dumps(card, indent=2)
+        meta_result = await self.run_meta_analysis(scan_result, card_json)
+
+        return scan_result, meta_result
+
+    def apply_meta_analysis(
+        self,
+        scan_result: ScanResult,
+        meta_result: MetaAnalysisResult,
+        remove_false_positives: bool = True,
+    ) -> ScanResult:
+        """Apply meta-analysis results to a scan result.
+
+        Creates a new ScanResult with findings filtered and enriched
+        based on meta-analysis. The output format is consistent with
+        standard ScanResult format for seamless integration.
+
+        Args:
+            scan_result: Original scan result
+            meta_result: Meta-analysis result to apply
+            remove_false_positives: Whether to remove identified false positives
+
+        Returns:
+            New ScanResult with applied meta-analysis, using consistent SecurityFinding format
+        """
+        # Use the MetaAnalysisResult helper to get consistent SecurityFinding objects
+        new_findings = meta_result.get_findings_as_security_findings()
+
+        # Create new scan result with enriched findings
+        # Format matches standard ScanResult.to_dict() output
+        new_result = ScanResult(
+            target_name=scan_result.target_name,
+            target_type=scan_result.target_type,
+            status=scan_result.status,
+            analyzers=scan_result.analyzers + ["meta"],
+            findings=new_findings,
+            metadata={
+                **scan_result.metadata,
+                "meta_analysis": {
+                    "applied": True,
+                    "false_positives_removed": len(meta_result.false_positives),
+                    "original_finding_count": len(scan_result.findings),
+                    "validated_finding_count": len(new_findings),
+                    "recommendations_count": len(meta_result.recommendations),
+                    "risk_assessment": meta_result.overall_risk_assessment,
+                    "correlations": meta_result.correlations,
+                    "recommendations": meta_result.recommendations,
+                },
+            },
+        )
+
+        return new_result
