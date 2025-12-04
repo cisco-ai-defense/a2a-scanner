@@ -1,0 +1,3 @@
+# CODEOWNERS
+# The first matching pattern takes precedence.
+* @cisco-ai-defense/a2a-scanner-reviewers

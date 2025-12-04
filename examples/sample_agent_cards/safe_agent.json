@@ -1,0 +1,53 @@
+{
+  "name": "example-search-agent",
+  "version": "1.0.0",
+  "description": "An example A2A agent that performs web searches",
+  "author": "Example Corp",
+  "homepage": "https://example.com",
+  "license": "MIT",
+  "capabilities": [
+    {
+      "name": "web_search",
+      "type": "read",
+      "description": "Search the web for information",
+      "parameters": {
+        "query": "string",
+        "max_results": "integer"
+      },
+      "required": false
+    },
+    {
+      "name": "get_weather",
+      "type": "read",
+      "description": "Get weather information",
+      "parameters": {
+        "location": "string"
+      },
+      "required": false
+    }
+  ],
+  "endpoints": {
+    "default": {
+      "url": "https://api.example.com/agent",
+      "method": "POST",
+      "authentication": {
+        "type": "api_key",
+        "required": true
+      }
+    },
+    "health": {
+      "url": "https://api.example.com/health",
+      "method": "GET"
+    }
+  },
+  "authentication": {
+    "type": "api_key",
+    "required": true
+  },
+  "tags": ["search", "web", "information"],
+  "metadata": {
+    "rate_limit": "100 requests per minute",
+    "response_format": "json"
+  }
+}
+
