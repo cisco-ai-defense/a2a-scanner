@@ -805,8 +805,8 @@ Copyright 2025 Cisco Systems, Inc. and its affiliates
 
 ## Related Projects
 
-- **[A2A Protocol](https://github.com/a2a-project)** - Official A2A specification
-- **[A2A Samples](https://github.com/a2a-project/a2a-samples)** - Example agent implementations
+- **[A2A Protocol](https://github.com/a2aproject/A2A)** - Official A2A specification
+- **[A2A Samples](https://github.com/a2aproject/a2a-samples)** - Example agent implementations
 - **[Cisco AI Defense A2A Scanner](https://github.com/cisco-ai-defense/a2a-scanner)** - Agent-to-Agent (A2A) Protocol Scanner
 
 ---
