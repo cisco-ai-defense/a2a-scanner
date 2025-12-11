@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
+[![PyPI](https://img.shields.io/pypi/v/cisco-ai-a2a-scanner)](https://pypi.org/project/cisco-ai-a2a-scanner/)
 [![UV](https://img.shields.io/badge/uv-compatible-green)](https://github.com/astral-sh/uv)
 
 **Scan Agent-to-Agent (A2A) protocol implementations for security threats and vulnerabilities.**
@@ -24,31 +25,62 @@ The A2A Security Scanner provides comprehensive security analysis for Agent-to-A
 
 ## Installation
 
-### Quick Install
+### Prerequisites
 
-**Using UV (Recommended)**
+- Python 3.11+
+- uv (Python package manager) - recommended
+- LLM Provider API Key (optional, for LLM analyzer)
+
+### Installing from PyPI
+
+**Using uv (Recommended)**
 
 ```bash
 # Install UV
 brew install uv
 # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Clone the repository
+uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
+source /path/to/your/choice/of/venv/directory/bin/activate
+uv pip install cisco-ai-a2a-scanner
+
+# Verify installation
+a2a-scanner list-analyzers
+```
+
+**Using pip**
+
+```bash
+pip install cisco-ai-a2a-scanner
+
+# Verify installation
+a2a-scanner list-analyzers
+```
+
+### Installing from Source
+
+```bash
 git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
 
-# Install dependencies
+# Install UV (if not already installed)
+brew install uv
+# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install with uv sync (recommended)
 uv sync
 
 # Verify installation
 uv run a2a-scanner list-analyzers
+
+# Or install with uv venv + pip
+uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
+source /path/to/your/choice/of/venv/directory/bin/activate
+uv pip install -e .
+
+# Alternatively, using pip
+pip install -e .
 ```
-
-### Requirements
-
-- **Python**: 3.11 or higher
-- **Package Manager**: UV (recommended) or pip
-- **Optional**: Azure OpenAI API key for LLM analyzer
 
 ---
 
@@ -90,7 +122,7 @@ uv run a2a-scanner scan-endpoint https://agent.example.com/api
 uv run a2a-scanner scan-endpoint https://agent.example.com/api --bearer-token "$TOKEN"
 ```
 
-> **Note**: You can omit `uv run` if you activate the virtual environment first with `source .venv/bin/activate`
+> **Note**: After activating your virtual environment or installing via pip, you can run commands directly without the `uv run` prefix (e.g., `a2a-scanner scan-card agent.json`).
 
 ### 🎮 Try Interactive Demo
 
@@ -468,14 +500,24 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      
       - name: Install A2A Scanner
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          uv sync
+          uv venv .venv
+          source .venv/bin/activate
+          uv pip install cisco-ai-a2a-scanner
       
       - name: Scan endpoint
         run: |
-          uv run a2a-scanner scan-endpoint \
+          source .venv/bin/activate
+          a2a-scanner scan-endpoint \
             ${{ secrets.AGENT_ENDPOINT_URL }} \
             --bearer-token ${{ secrets.AGENT_TOKEN }} \
             --output scan-results.json
@@ -546,33 +588,19 @@ a2a-scanner scan-card examples/sample_agent_cards/unsafe_agent.json
 
 ### Run Test Suite
 
-**Using UV (Recommended)**
-
-```bash
-# Install test dependencies
-uv pip install pytest pytest-asyncio pytest-cov
-
-# Run all tests
-uv run pytest tests/
-
-# Run with coverage
-uv run pytest tests/ --cov=a2ascanner --cov-report=term
-
-# Run specific test file
-uv run pytest tests/test_api.py -v
-```
-
-**Using pip**
-
 ```bash
 # Install test dependencies
 pip install pytest pytest-asyncio pytest-cov
+# or: uv pip install pytest pytest-asyncio pytest-cov
 
 # Run all tests
 pytest tests/
 
 # Run with coverage
 pytest tests/ --cov=a2ascanner --cov-report=term
+
+# Run specific test file
+pytest tests/test_api.py -v
 ```
 
 ---
@@ -671,6 +699,8 @@ Example threat files include:
 
 ### Setup Development Environment
 
+**Using uv (Recommended)**
+
 ```bash
 # Clone repository
 git clone https://github.com/cisco-ai-defense/a2a-scanner.git
@@ -680,49 +710,69 @@ cd a2a-scanner
 brew install uv
 # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Sync dependencies
-uv sync
-
-# Add development dependencies
-uv add --dev pytest pytest-asyncio pytest-cov
+# Create virtual environment and install
+uv venv -p <Python version less than or equal to 3.13> .venv
+source .venv/bin/activate
+uv pip install -e .
 
 # Verify installation
-uv run a2a-scanner list-analyzers
+a2a-scanner list-analyzers
+```
+
+**Using pip**
+
+```bash
+# Clone repository
+git clone https://github.com/cisco-ai-defense/a2a-scanner.git
+cd a2a-scanner
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
+
+# Install in development mode
+pip install -e .
+
+# Verify installation
+a2a-scanner list-analyzers
 ```
 
 ### Running Tests
 
 ```bash
+# Install test dependencies
+pip install pytest pytest-asyncio pytest-cov
+# or: uv pip install pytest pytest-asyncio pytest-cov
+
 # Run all tests
-uv run pytest tests/ -q
+pytest tests/ -q
 
 # Verbose output
-uv run pytest tests/ -v
+pytest tests/ -v
 
 # With coverage report
-uv run pytest tests/ --cov=a2ascanner --cov-report=term-missing
+pytest tests/ --cov=a2ascanner --cov-report=term-missing
 
 # Run specific test categories
-uv run pytest tests/test_api.py          # API tests
-uv run pytest tests/test_analyzers.py    # Analyzer tests
-uv run pytest tests/test_yara.py         # YARA rule tests
-uv run pytest tests/test_heuristic.py    # Heuristic tests
+pytest tests/test_api.py          # API tests
+pytest tests/test_analyzers.py    # Analyzer tests
+pytest tests/test_yara.py         # YARA rule tests
+pytest tests/test_heuristic.py    # Heuristic tests
 ```
 
 ### Managing Dependencies
 
 ```bash
-# Add a runtime dependency
-uv add <package-name>
+# Using uv
+uv pip install <package-name>
+uv pip install --upgrade <package-name>
+uv pip list
 
-# Add a development dependency
-uv add --dev <package-name>
-
-# Update all dependencies
-uv sync --upgrade
-
-# Remove a dependency
-uv remove <package-name>
+# Using pip
+pip install <package-name>
+pip install --upgrade <package-name>
+pip list
 ```
 
 ### About UV
@@ -738,35 +788,14 @@ UV is a fast Python package manager and environment manager written in Rust:
 ### Common Commands
 
 ```bash
-# Run commands without activating venv
-uv run <command>
-
-# Examples
-uv run a2a-scanner scan-card test.json
-uv run pytest tests/
-uv run python script.py
-
-# Sync environment
-uv sync
-
-# Show installed packages
-uv pip list
-
-# Lock dependencies
-uv lock
-```
-
-### Manual Environment Activation
-
-If you prefer traditional activation:
-
-```bash
+# Activate virtual environment
 source .venv/bin/activate  # Linux/macOS
 .venv\Scripts\activate     # Windows
 
 # Then use commands directly
 a2a-scanner scan-card test.json
 pytest tests/
+python script.py
 ```
 
 ---

@@ -8,13 +8,36 @@ This guide shows you how to run and test the A2A Scanner using the example threa
 
 ### 1. Install the Scanner
 
-```bash
-cd a2a-scanner
+**Using uv (Recommended)**
 
-# Install with uv (recommended)
+```bash
+# Installing from PyPI (recommended)
+uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
+source /path/to/your/choice/of/venv/directory/bin/activate
+uv pip install cisco-ai-a2a-scanner
+
+# Or install from source with uv sync
+git clone https://github.com/cisco-ai-defense/a2a-scanner.git
+cd a2a-scanner
 uv sync
 
-# Or install with pip
+# Or install from source with uv venv + pip
+git clone https://github.com/cisco-ai-defense/a2a-scanner.git
+cd a2a-scanner
+uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
+source /path/to/your/choice/of/venv/directory/bin/activate
+uv pip install -e .
+```
+
+**Using pip**
+
+```bash
+# Installing from PyPI
+pip install cisco-ai-a2a-scanner
+
+# Or install from source
+git clone https://github.com/cisco-ai-defense/a2a-scanner.git
+cd a2a-scanner
 pip install -e .
 ```
 
@@ -262,9 +285,15 @@ a2a-scanner scan-file examples/a2a_threat_files/judge_persuade.py
 
 ### Issue: Command not found
 ```bash
-# Solution: Install the package
-uv sync
-# Or
+# Solution: Install the package from PyPI using uv
+uv venv .venv
+source .venv/bin/activate
+uv pip install cisco-ai-a2a-scanner
+
+# Or using pip
+pip install cisco-ai-a2a-scanner
+
+# Or from source
 pip install -e .
 ```
 
@@ -354,12 +383,18 @@ jobs:
         with:
           python-version: '3.12'
       
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      
       - name: Install scanner
         run: |
-          pip install -e .
+          uv venv .venv
+          source .venv/bin/activate
+          uv pip install cisco-ai-a2a-scanner
       
       - name: Scan for threats
         run: |
+          source .venv/bin/activate
           a2a-scanner scan-directory examples/a2a_threat_files -a yara -a pattern
 ```
 

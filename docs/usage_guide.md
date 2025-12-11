@@ -4,27 +4,41 @@
 
 ### Prerequisites
 
-- Python 3.11 or higher
-- pip or uv package manager
+- Python 3.11+
+- uv (Python package manager) - recommended
 
-### Install from PyPI
+### Installing from PyPI
+
+**Using uv (Recommended)**
 
 ```bash
-pip install a2a-scanner
+uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
+source /path/to/your/choice/of/venv/directory/bin/activate
+uv pip install cisco-ai-a2a-scanner
 ```
 
-### Install from source
+**Using pip**
 
 ```bash
-git clone https://github.com/your-org/a2a-scanner.git
+pip install cisco-ai-a2a-scanner
+```
+
+### Installing from Source
+
+```bash
+git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
+
+# Install with uv sync (recommended - uses lockfile for reproducible builds)
+uv sync
+
+# Or install with uv venv + pip
+uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
+source /path/to/your/choice/of/venv/directory/bin/activate
+uv pip install -e .
+
+# Or using pip
 pip install -e .
-```
-
-### Install with development dependencies
-
-```bash
-pip install -e ".[dev]"
 ```
 
 ## Configuration
@@ -392,15 +406,22 @@ jobs:
       - uses: actions/checkout@v2
       
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
       
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      
       - name: Install scanner
-        run: pip install a2a-scanner
+        run: |
+          uv venv .venv
+          source .venv/bin/activate
+          uv pip install cisco-ai-a2a-scanner
       
       - name: Scan agent cards
         run: |
+          source .venv/bin/activate
           a2a-scanner scan-directory agents/ -o results/
       
       - name: Check for high severity
