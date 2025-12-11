@@ -35,8 +35,8 @@ The A2A Security Scanner provides comprehensive security analysis for Agent-to-A
 
 ```bash
 # Install UV
-brew install uv
-# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
 
 uv tool install --python 3.13 cisco-ai-a2a-scanner
 
@@ -60,8 +60,8 @@ git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
 
 # Install UV (if not already installed)
-brew install uv
-# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
 
 uv sync
 
@@ -711,8 +711,8 @@ git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
 
 # Install UV (if not already installed)
-brew install uv
-# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
 
 # Sync dependencies
 uv sync

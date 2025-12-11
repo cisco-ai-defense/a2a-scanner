@@ -12,8 +12,8 @@ This guide shows you how to run and test the A2A Scanner using the example threa
 
 ```bash
 # Install UV
-brew install uv
-# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
 
 uv tool install --python 3.13 cisco-ai-a2a-scanner
 ```
@@ -31,8 +31,8 @@ git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
 
 # Install UV (if not already installed)
-brew install uv
-# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
 
 uv sync
 
