@@ -228,7 +228,7 @@ Use dev mode only in:
 - Internal testing networks
 - CI/CD pipelines (isolated)
 
-See [`DEV_MODE_GUIDE.md`](DEV_MODE_GUIDE.md) for complete documentation.
+See [`DEV_MODE_GUIDE.md`](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/DEV_MODE_GUIDE.md) for complete documentation.
 
 ---
 
@@ -791,16 +791,16 @@ python script.py
 
 ## Documentation
 
-For detailed documentation, see the `docs/` directory:
+For detailed documentation, see the [docs/](https://github.com/cisco-ai-defense/a2a-scanner/tree/main/docs) directory:
 
-- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines
-- **[DEV_MODE_GUIDE.md](./DEV_MODE_GUIDE.md)** - Development mode documentation
-- **[docs/architecture.md](./docs/architecture.md)** - System architecture
-- **[docs/analyzer_guide.md](./docs/analyzer_guide.md)** - Analyzer implementation guide
-- **[docs/usage_guide.md](./docs/usage_guide.md)** - Comprehensive usage guide
-- **[docs/testing_guide.md](./docs/testing_guide.md)** - Testing documentation
-- **[docs/a2a-threats-taxonomy.md](./docs/a2a-threats-taxonomy.md)** - A2A threat taxonomy reference
-- **[docs/scanner_placement_guide.md](./docs/scanner_placement_guide.md)** - Scanner placement strategies
+- **[CONTRIBUTING.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/CONTRIBUTING.md)** - Contribution guidelines
+- **[DEV_MODE_GUIDE.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/DEV_MODE_GUIDE.md)** - Development mode documentation
+- **[docs/architecture.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/architecture.md)** - System architecture
+- **[docs/analyzer_guide.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/analyzer_guide.md)** - Analyzer implementation guide
+- **[docs/usage_guide.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/usage_guide.md)** - Comprehensive usage guide
+- **[docs/testing_guide.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/testing_guide.md)** - Testing documentation
+- **[docs/a2a-threats-taxonomy.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/a2a-threats-taxonomy.md)** - A2A threat taxonomy reference
+- **[docs/scanner_placement_guide.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/scanner_placement_guide.md)** - Scanner placement strategies
 
 ---
 
@@ -815,7 +815,7 @@ For enterprise-grade A2A security solutions and support:
 
 ## License
 
-Distributed under the Apache 2.0 License. See [LICENSE](./LICENSE) for more information.
+Distributed under the Apache 2.0 License. See [LICENSE](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/LICENSE) for more information.
 
 Copyright 2025 Cisco Systems, Inc. and its affiliates
 
@@ -825,7 +825,6 @@ Copyright 2025 Cisco Systems, Inc. and its affiliates
 
 - **[A2A Protocol](https://github.com/a2aproject/A2A)** - Official A2A specification
 - **[A2A Samples](https://github.com/a2aproject/a2a-samples)** - Example agent implementations
-- **[Cisco AI Defense A2A Scanner](https://github.com/cisco-ai-defense/a2a-scanner)** - Agent-to-Agent (A2A) Protocol Scanner
 
 ---
 
