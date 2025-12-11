@@ -8,43 +8,44 @@ This guide shows you how to run and test the A2A Scanner using the example threa
 
 ### 1. Install the Scanner
 
-**Using uv (Recommended)**
+**Installing as a CLI Tool**
 
 ```bash
-# Installing from PyPI (recommended)
-uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
-source /path/to/your/choice/of/venv/directory/bin/activate
-uv pip install cisco-ai-a2a-scanner
+# Install UV
+brew install uv
+# or: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Or install from source with uv sync
-git clone https://github.com/cisco-ai-defense/a2a-scanner.git
-cd a2a-scanner
-uv sync
-
-# Or install from source with uv venv + pip
-git clone https://github.com/cisco-ai-defense/a2a-scanner.git
-cd a2a-scanner
-uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
-source /path/to/your/choice/of/venv/directory/bin/activate
-uv pip install -e .
+uv tool install --python 3.13 cisco-ai-a2a-scanner
 ```
 
-**Using pip**
+Alternatively, you can install from source:
 
 ```bash
-# Installing from PyPI
-pip install cisco-ai-a2a-scanner
+uv tool install --python 3.13 --from git+https://github.com/cisco-ai-defense/a2a-scanner cisco-ai-a2a-scanner
+```
 
-# Or install from source
+**Installing for Local Development**
+
+```bash
 git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
-pip install -e .
+
+# Install UV (if not already installed)
+brew install uv
+# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+uv sync
+
+# Activate virtual environment
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
 ```
 
 ### 2. Verify Installation
 
 ```bash
 # Check CLI is available
+a2a-scanner list-analyzers
 a2a-scanner --help
 
 # Should show available commands:
@@ -285,10 +286,8 @@ a2a-scanner scan-file examples/a2a_threat_files/judge_persuade.py
 
 ### Issue: Command not found
 ```bash
-# Solution: Install the package from PyPI using uv
-uv venv .venv
-source .venv/bin/activate
-uv pip install cisco-ai-a2a-scanner
+# Solution: Install the package from PyPI using uv (recommended)
+uv tool install --python 3.13 cisco-ai-a2a-scanner
 
 # Or using pip
 pip install cisco-ai-a2a-scanner
@@ -387,15 +386,10 @@ jobs:
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
       
       - name: Install scanner
-        run: |
-          uv venv .venv
-          source .venv/bin/activate
-          uv pip install cisco-ai-a2a-scanner
+        run: uv tool install --python 3.13 cisco-ai-a2a-scanner
       
       - name: Scan for threats
-        run: |
-          source .venv/bin/activate
-          a2a-scanner scan-directory examples/a2a_threat_files -a yara -a pattern
+        run: a2a-scanner scan-directory examples/a2a_threat_files -a yara -a pattern
 ```
 
 ---

@@ -7,38 +7,71 @@
 - Python 3.11+
 - uv (Python package manager) - recommended
 
-### Installing from PyPI
-
-**Using uv (Recommended)**
+### Installing as a CLI Tool
 
 ```bash
-uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
-source /path/to/your/choice/of/venv/directory/bin/activate
-uv pip install cisco-ai-a2a-scanner
+# Install UV
+brew install uv
+# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+uv tool install --python 3.13 cisco-ai-a2a-scanner
+
+# Verify installation
+a2a-scanner list-analyzers
 ```
 
-**Using pip**
+Alternatively, you can install from source:
 
 ```bash
-pip install cisco-ai-a2a-scanner
+uv tool install --python 3.13 --from git+https://github.com/cisco-ai-defense/a2a-scanner cisco-ai-a2a-scanner
+
+# Verify installation
+a2a-scanner list-analyzers
 ```
 
-### Installing from Source
+### Installing for Local Development
 
 ```bash
 git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
 
-# Install with uv sync (recommended - uses lockfile for reproducible builds)
+# Install UV (if not already installed)
+brew install uv
+# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+
 uv sync
 
-# Or install with uv venv + pip
-uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
-source /path/to/your/choice/of/venv/directory/bin/activate
-uv pip install -e .
+# Activate virtual environment
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
 
-# Or using pip
-pip install -e .
+# Verify installation
+a2a-scanner list-analyzers
+```
+
+### Install as a Dependency in Other Projects
+
+Add A2A Scanner as a dependency using uv. From your project root (initialize with uv if needed):
+
+```bash
+uv init  # if not already done
+uv add cisco-ai-a2a-scanner
+# then activate the virtual environment:
+# macOS and Linux: source .venv/bin/activate
+# Windows CMD: .venv\Scripts\activate
+# Windows PWSH: .venv\Scripts\Activate.ps1
+uv sync
+```
+
+The module name is `a2ascanner`. Import this module with:
+
+```python
+# import everything (not recommended)
+import a2ascanner
+
+# selective imports (recommended). For example:
+from a2ascanner import Scanner, Config
+from a2ascanner.core.models import ThreatSeverity
 ```
 
 ## Configuration
@@ -414,15 +447,10 @@ jobs:
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
       
       - name: Install scanner
-        run: |
-          uv venv .venv
-          source .venv/bin/activate
-          uv pip install cisco-ai-a2a-scanner
+        run: uv tool install --python 3.13 cisco-ai-a2a-scanner
       
       - name: Scan agent cards
-        run: |
-          source .venv/bin/activate
-          a2a-scanner scan-directory agents/ -o results/
+        run: a2a-scanner scan-directory agents/ -o results/
       
       - name: Check for high severity
         run: |

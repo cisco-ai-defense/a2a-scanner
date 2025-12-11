@@ -31,33 +31,29 @@ The A2A Security Scanner provides comprehensive security analysis for Agent-to-A
 - uv (Python package manager) - recommended
 - LLM Provider API Key (optional, for LLM analyzer)
 
-### Installing from PyPI
-
-**Using uv (Recommended)**
+### Installing as a CLI Tool
 
 ```bash
 # Install UV
 brew install uv
 # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
-source /path/to/your/choice/of/venv/directory/bin/activate
-uv pip install cisco-ai-a2a-scanner
+uv tool install --python 3.13 cisco-ai-a2a-scanner
 
 # Verify installation
 a2a-scanner list-analyzers
 ```
 
-**Using pip**
+Alternatively, you can install from source:
 
 ```bash
-pip install cisco-ai-a2a-scanner
+uv tool install --python 3.13 --from git+https://github.com/cisco-ai-defense/a2a-scanner cisco-ai-a2a-scanner
 
 # Verify installation
 a2a-scanner list-analyzers
 ```
 
-### Installing from Source
+### Installing for Local Development
 
 ```bash
 git clone https://github.com/cisco-ai-defense/a2a-scanner.git
@@ -67,19 +63,39 @@ cd a2a-scanner
 brew install uv
 # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install with uv sync (recommended)
 uv sync
 
+# Activate virtual environment
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
+
 # Verify installation
-uv run a2a-scanner list-analyzers
+a2a-scanner list-analyzers
+```
 
-# Or install with uv venv + pip
-uv venv -p <Python version less than or equal to 3.13> /path/to/your/choice/of/venv/directory
-source /path/to/your/choice/of/venv/directory/bin/activate
-uv pip install -e .
+### Install as a Dependency in Other Projects
 
-# Alternatively, using pip
-pip install -e .
+Add A2A Scanner as a dependency using uv. From your project root (initialize with uv if needed):
+
+```bash
+uv init  # if not already done
+uv add cisco-ai-a2a-scanner
+# then activate the virtual environment:
+# macOS and Linux: source .venv/bin/activate
+# Windows CMD: .venv\Scripts\activate
+# Windows PWSH: .venv\Scripts\Activate.ps1
+uv sync
+```
+
+The module name is `a2ascanner`. Import this module with:
+
+```python
+# import everything (not recommended)
+import a2ascanner
+
+# selective imports (recommended). For example:
+from a2ascanner import Scanner, Config
+from a2ascanner.core.models import ThreatSeverity
 ```
 
 ---
@@ -90,39 +106,37 @@ pip install -e .
 
 ```bash
 # Scan a JSON agent card file
-uv run a2a-scanner scan-card examples/sample_agent_cards/unsafe_agent.json
+a2a-scanner scan-card examples/sample_agent_cards/unsafe_agent.json
 
 # Scan with specific analyzers
-uv run a2a-scanner scan-card agent.json --analyzers yara,spec
+a2a-scanner scan-card agent.json --analyzers yara,spec
 
 # JSON output
-uv run a2a-scanner scan-card agent.json --output results.json
+a2a-scanner scan-card agent.json --output results.json
 ```
 
 ### Scan Source Code
 
 ```bash
 # Scan a directory
-uv run a2a-scanner scan-directory /path/to/agent/code
+a2a-scanner scan-directory /path/to/agent/code
 
 # Scan a single file
-uv run a2a-scanner scan-file agent.py
+a2a-scanner scan-file agent.py
 
 # Scan with pattern
-uv run a2a-scanner scan-directory ./agents --pattern "**/*.py"
+a2a-scanner scan-directory ./agents --pattern "**/*.py"
 ```
 
 ### Scan Live Agent Endpoint
 
 ```bash
 # Scan a running agent
-uv run a2a-scanner scan-endpoint https://agent.example.com/api
+a2a-scanner scan-endpoint https://agent.example.com/api
 
 # With authentication
-uv run a2a-scanner scan-endpoint https://agent.example.com/api --bearer-token "$TOKEN"
+a2a-scanner scan-endpoint https://agent.example.com/api --bearer-token "$TOKEN"
 ```
-
-> **Note**: After activating your virtual environment or installing via pip, you can run commands directly without the `uv run` prefix (e.g., `a2a-scanner scan-card agent.json`).
 
 ### 🎮 Try Interactive Demo
 
@@ -162,13 +176,13 @@ When `--dev` is enabled, the scanner allows:
 
 ```bash
 # Scan local agent endpoint
-uv run a2a-scanner --dev scan-endpoint http://localhost:8000
+a2a-scanner --dev scan-endpoint http://localhost:8000
 
 # Scan with debug logging
-uv run a2a-scanner --dev --debug scan-endpoint http://localhost:9999
+a2a-scanner --dev --debug scan-endpoint http://localhost:9999
 
 # Scan agent card from local URL
-uv run a2a-scanner --dev scan-card agent.json
+a2a-scanner --dev scan-card agent.json
 ```
 
 ### API Server with Dev Mode
@@ -178,7 +192,7 @@ uv run a2a-scanner --dev scan-card agent.json
 export A2A_SCANNER_DEV_MODE=true
 
 # Start API server
-uv run a2a-scanner-api --reload
+a2a-scanner-api --reload
 
 # Now all API requests allow localhost and skip SSL verification
 curl -X POST http://localhost:8000/scan/endpoint \
@@ -392,25 +406,25 @@ Dynamic security testing of running A2A agent endpoints to verify security postu
 
 ```bash
 # Basic endpoint scan
-uv run a2a-scanner scan-endpoint https://agent.example.com/api
+a2a-scanner scan-endpoint https://agent.example.com/api
 
 # With authentication
-uv run a2a-scanner scan-endpoint https://agent.example.com/api \
+a2a-scanner scan-endpoint https://agent.example.com/api \
   --bearer-token "your-token-here"
 
 # Scan with custom timeout
-uv run a2a-scanner scan-endpoint https://agent.example.com/api \
+a2a-scanner scan-endpoint https://agent.example.com/api \
   --timeout 60
 
 # Local development endpoint (requires --dev flag)
-uv run a2a-scanner --dev scan-endpoint http://localhost:8080
+a2a-scanner --dev scan-endpoint http://localhost:8080
 
 # Skip SSL verification (not recommended for production)
-uv run a2a-scanner scan-endpoint https://agent.example.com/ \
+a2a-scanner scan-endpoint https://agent.example.com/ \
   --no-verify-ssl
 
 # Save results to JSON
-uv run a2a-scanner scan-endpoint https://agent.example.com/api \
+a2a-scanner scan-endpoint https://agent.example.com/api \
   --output results.json
 ```
 
@@ -509,14 +523,10 @@ jobs:
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
       
       - name: Install A2A Scanner
-        run: |
-          uv venv .venv
-          source .venv/bin/activate
-          uv pip install cisco-ai-a2a-scanner
+        run: uv tool install --python 3.13 cisco-ai-a2a-scanner
       
       - name: Scan endpoint
         run: |
-          source .venv/bin/activate
           a2a-scanner scan-endpoint \
             ${{ secrets.AGENT_ENDPOINT_URL }} \
             --bearer-token ${{ secrets.AGENT_TOKEN }} \
@@ -589,10 +599,6 @@ a2a-scanner scan-card examples/sample_agent_cards/unsafe_agent.json
 ### Run Test Suite
 
 ```bash
-# Install test dependencies
-pip install pytest pytest-asyncio pytest-cov
-# or: uv pip install pytest pytest-asyncio pytest-cov
-
 # Run all tests
 pytest tests/
 
@@ -699,40 +705,21 @@ Example threat files include:
 
 ### Setup Development Environment
 
-**Using uv (Recommended)**
-
 ```bash
 # Clone repository
 git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
 
-# Install UV
+# Install UV (if not already installed)
 brew install uv
 # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Create virtual environment and install
-uv venv -p <Python version less than or equal to 3.13> .venv
-source .venv/bin/activate
-uv pip install -e .
+# Sync dependencies
+uv sync
 
-# Verify installation
-a2a-scanner list-analyzers
-```
-
-**Using pip**
-
-```bash
-# Clone repository
-git clone https://github.com/cisco-ai-defense/a2a-scanner.git
-cd a2a-scanner
-
-# Create virtual environment
-python -m venv .venv
+# Activate virtual environment
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
-
-# Install in development mode
-pip install -e .
 
 # Verify installation
 a2a-scanner list-analyzers
@@ -740,11 +727,9 @@ a2a-scanner list-analyzers
 
 ### Running Tests
 
-```bash
-# Install test dependencies
-pip install pytest pytest-asyncio pytest-cov
-# or: uv pip install pytest pytest-asyncio pytest-cov
+After activating the virtual environment (`source .venv/bin/activate`):
 
+```bash
 # Run all tests
 pytest tests/ -q
 
@@ -761,18 +746,22 @@ pytest tests/test_yara.py         # YARA rule tests
 pytest tests/test_heuristic.py    # Heuristic tests
 ```
 
+> **Note**: You can also use `uv run pytest tests/` without activating the virtual environment.
+
 ### Managing Dependencies
 
 ```bash
-# Using uv
-uv pip install <package-name>
-uv pip install --upgrade <package-name>
-uv pip list
+# Add a runtime dependency
+uv add <package-name>
 
-# Using pip
-pip install <package-name>
-pip install --upgrade <package-name>
-pip list
+# Add a development dependency
+uv add --dev <package-name>
+
+# Update all dependencies
+uv sync --upgrade
+
+# Remove a dependency
+uv remove <package-name>
 ```
 
 ### About UV
