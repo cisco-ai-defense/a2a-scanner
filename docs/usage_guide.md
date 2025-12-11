@@ -4,27 +4,74 @@
 
 ### Prerequisites
 
-- Python 3.11 or higher
-- pip or uv package manager
+- Python 3.11+
+- uv (Python package manager) - recommended
 
-### Install from PyPI
+### Installing as a CLI Tool
 
 ```bash
-pip install a2a-scanner
+# Install UV
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
+
+uv tool install --python 3.13 cisco-ai-a2a-scanner
+
+# Verify installation
+a2a-scanner list-analyzers
 ```
 
-### Install from source
+Alternatively, you can install from source:
 
 ```bash
-git clone https://github.com/your-org/a2a-scanner.git
+uv tool install --python 3.13 --from git+https://github.com/cisco-ai-defense/a2a-scanner cisco-ai-a2a-scanner
+
+# Verify installation
+a2a-scanner list-analyzers
+```
+
+### Installing for Local Development
+
+```bash
+git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
-pip install -e .
+
+# Install UV (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
+
+uv sync
+
+# Activate virtual environment
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
+
+# Verify installation
+a2a-scanner list-analyzers
 ```
 
-### Install with development dependencies
+### Install as a Dependency in Other Projects
+
+Add A2A Scanner as a dependency using uv. From your project root (initialize with uv if needed):
 
 ```bash
-pip install -e ".[dev]"
+uv init  # if not already done
+uv add cisco-ai-a2a-scanner
+# then activate the virtual environment:
+# macOS and Linux: source .venv/bin/activate
+# Windows CMD: .venv\Scripts\activate
+# Windows PWSH: .venv\Scripts\Activate.ps1
+uv sync
+```
+
+The module name is `a2ascanner`. Import this module with:
+
+```python
+# import everything (not recommended)
+import a2ascanner
+
+# selective imports (recommended). For example:
+from a2ascanner import Scanner, Config
+from a2ascanner.core.models import ThreatSeverity
 ```
 
 ## Configuration
@@ -392,16 +439,18 @@ jobs:
       - uses: actions/checkout@v2
       
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
       
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      
       - name: Install scanner
-        run: pip install a2a-scanner
+        run: uv tool install --python 3.13 cisco-ai-a2a-scanner
       
       - name: Scan agent cards
-        run: |
-          a2a-scanner scan-directory agents/ -o results/
+        run: a2a-scanner scan-directory agents/ -o results/
       
       - name: Check for high severity
         run: |

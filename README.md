@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
+[![PyPI](https://img.shields.io/pypi/v/cisco-ai-a2a-scanner)](https://pypi.org/project/cisco-ai-a2a-scanner/)
 [![UV](https://img.shields.io/badge/uv-compatible-green)](https://github.com/astral-sh/uv)
 
 **Scan Agent-to-Agent (A2A) protocol implementations for security threats and vulnerabilities.**
@@ -24,31 +25,78 @@ The A2A Security Scanner provides comprehensive security analysis for Agent-to-A
 
 ## Installation
 
-### Quick Install
+### Prerequisites
 
-**Using UV (Recommended)**
+- Python 3.11+
+- uv (Python package manager) - recommended
+- LLM Provider API Key (optional, for LLM analyzer)
+
+### Installing as a CLI Tool
 
 ```bash
 # Install UV
-brew install uv
-# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
 
-# Clone the repository
+uv tool install --python 3.13 cisco-ai-a2a-scanner
+
+# Verify installation
+a2a-scanner list-analyzers
+```
+
+Alternatively, you can install from source:
+
+```bash
+uv tool install --python 3.13 --from git+https://github.com/cisco-ai-defense/a2a-scanner cisco-ai-a2a-scanner
+
+# Verify installation
+a2a-scanner list-analyzers
+```
+
+### Installing for Local Development
+
+```bash
 git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
 
-# Install dependencies
+# Install UV (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
+
 uv sync
 
+# Activate virtual environment
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
+
 # Verify installation
-uv run a2a-scanner list-analyzers
+a2a-scanner list-analyzers
 ```
 
-### Requirements
+### Install as a Dependency in Other Projects
 
-- **Python**: 3.11 or higher
-- **Package Manager**: UV (recommended) or pip
-- **Optional**: Azure OpenAI API key for LLM analyzer
+Add A2A Scanner as a dependency using uv. From your project root (initialize with uv if needed):
+
+```bash
+uv init  # if not already done
+uv add cisco-ai-a2a-scanner
+# then activate the virtual environment:
+# macOS and Linux: source .venv/bin/activate
+# Windows CMD: .venv\Scripts\activate
+# Windows PWSH: .venv\Scripts\Activate.ps1
+uv sync
+```
+
+The module name is `a2ascanner`. Import this module with:
+
+```python
+# import everything (not recommended)
+import a2ascanner
+
+# selective imports (recommended). For example:
+from a2ascanner import Scanner, Config
+from a2ascanner.core.models import ThreatSeverity
+```
 
 ---
 
@@ -58,39 +106,37 @@ uv run a2a-scanner list-analyzers
 
 ```bash
 # Scan a JSON agent card file
-uv run a2a-scanner scan-card examples/sample_agent_cards/unsafe_agent.json
+a2a-scanner scan-card examples/sample_agent_cards/unsafe_agent.json
 
 # Scan with specific analyzers
-uv run a2a-scanner scan-card agent.json --analyzers yara,spec
+a2a-scanner scan-card agent.json --analyzers yara,spec
 
 # JSON output
-uv run a2a-scanner scan-card agent.json --output results.json
+a2a-scanner scan-card agent.json --output results.json
 ```
 
 ### Scan Source Code
 
 ```bash
 # Scan a directory
-uv run a2a-scanner scan-directory /path/to/agent/code
+a2a-scanner scan-directory /path/to/agent/code
 
 # Scan a single file
-uv run a2a-scanner scan-file agent.py
+a2a-scanner scan-file agent.py
 
 # Scan with pattern
-uv run a2a-scanner scan-directory ./agents --pattern "**/*.py"
+a2a-scanner scan-directory ./agents --pattern "**/*.py"
 ```
 
 ### Scan Live Agent Endpoint
 
 ```bash
 # Scan a running agent
-uv run a2a-scanner scan-endpoint https://agent.example.com/api
+a2a-scanner scan-endpoint https://agent.example.com/api
 
 # With authentication
-uv run a2a-scanner scan-endpoint https://agent.example.com/api --bearer-token "$TOKEN"
+a2a-scanner scan-endpoint https://agent.example.com/api --bearer-token "$TOKEN"
 ```
-
-> **Note**: You can omit `uv run` if you activate the virtual environment first with `source .venv/bin/activate`
 
 ### 🎮 Try Interactive Demo
 
@@ -130,13 +176,13 @@ When `--dev` is enabled, the scanner allows:
 
 ```bash
 # Scan local agent endpoint
-uv run a2a-scanner --dev scan-endpoint http://localhost:8000
+a2a-scanner --dev scan-endpoint http://localhost:8000
 
 # Scan with debug logging
-uv run a2a-scanner --dev --debug scan-endpoint http://localhost:9999
+a2a-scanner --dev --debug scan-endpoint http://localhost:9999
 
 # Scan agent card from local URL
-uv run a2a-scanner --dev scan-card agent.json
+a2a-scanner --dev scan-card agent.json
 ```
 
 ### API Server with Dev Mode
@@ -146,7 +192,7 @@ uv run a2a-scanner --dev scan-card agent.json
 export A2A_SCANNER_DEV_MODE=true
 
 # Start API server
-uv run a2a-scanner-api --reload
+a2a-scanner-api --reload
 
 # Now all API requests allow localhost and skip SSL verification
 curl -X POST http://localhost:8000/scan/endpoint \
@@ -182,7 +228,7 @@ Use dev mode only in:
 - Internal testing networks
 - CI/CD pipelines (isolated)
 
-See [`DEV_MODE_GUIDE.md`](DEV_MODE_GUIDE.md) for complete documentation.
+See [`DEV_MODE_GUIDE.md`](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/DEV_MODE_GUIDE.md) for complete documentation.
 
 ---
 
@@ -360,25 +406,25 @@ Dynamic security testing of running A2A agent endpoints to verify security postu
 
 ```bash
 # Basic endpoint scan
-uv run a2a-scanner scan-endpoint https://agent.example.com/api
+a2a-scanner scan-endpoint https://agent.example.com/api
 
 # With authentication
-uv run a2a-scanner scan-endpoint https://agent.example.com/api \
+a2a-scanner scan-endpoint https://agent.example.com/api \
   --bearer-token "your-token-here"
 
 # Scan with custom timeout
-uv run a2a-scanner scan-endpoint https://agent.example.com/api \
+a2a-scanner scan-endpoint https://agent.example.com/api \
   --timeout 60
 
 # Local development endpoint (requires --dev flag)
-uv run a2a-scanner --dev scan-endpoint http://localhost:8080
+a2a-scanner --dev scan-endpoint http://localhost:8080
 
 # Skip SSL verification (not recommended for production)
-uv run a2a-scanner scan-endpoint https://agent.example.com/ \
+a2a-scanner scan-endpoint https://agent.example.com/ \
   --no-verify-ssl
 
 # Save results to JSON
-uv run a2a-scanner scan-endpoint https://agent.example.com/api \
+a2a-scanner scan-endpoint https://agent.example.com/api \
   --output results.json
 ```
 
@@ -468,14 +514,20 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      
       - name: Install A2A Scanner
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          uv sync
+        run: uv tool install --python 3.13 cisco-ai-a2a-scanner
       
       - name: Scan endpoint
         run: |
-          uv run a2a-scanner scan-endpoint \
+          a2a-scanner scan-endpoint \
             ${{ secrets.AGENT_ENDPOINT_URL }} \
             --bearer-token ${{ secrets.AGENT_TOKEN }} \
             --output scan-results.json
@@ -546,33 +598,15 @@ a2a-scanner scan-card examples/sample_agent_cards/unsafe_agent.json
 
 ### Run Test Suite
 
-**Using UV (Recommended)**
-
 ```bash
-# Install test dependencies
-uv pip install pytest pytest-asyncio pytest-cov
-
-# Run all tests
-uv run pytest tests/
-
-# Run with coverage
-uv run pytest tests/ --cov=a2ascanner --cov-report=term
-
-# Run specific test file
-uv run pytest tests/test_api.py -v
-```
-
-**Using pip**
-
-```bash
-# Install test dependencies
-pip install pytest pytest-asyncio pytest-cov
-
 # Run all tests
 pytest tests/
 
 # Run with coverage
 pytest tests/ --cov=a2ascanner --cov-report=term
+
+# Run specific test file
+pytest tests/test_api.py -v
 ```
 
 ---
@@ -676,38 +710,43 @@ Example threat files include:
 git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
 
-# Install UV
-brew install uv
-# or: curl -LsSf https://astral.sh/uv/install.sh | sh
+# Install UV (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
 
 # Sync dependencies
 uv sync
 
-# Add development dependencies
-uv add --dev pytest pytest-asyncio pytest-cov
+# Activate virtual environment
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
 
 # Verify installation
-uv run a2a-scanner list-analyzers
+a2a-scanner list-analyzers
 ```
 
 ### Running Tests
 
+After activating the virtual environment (`source .venv/bin/activate`):
+
 ```bash
 # Run all tests
-uv run pytest tests/ -q
+pytest tests/ -q
 
 # Verbose output
-uv run pytest tests/ -v
+pytest tests/ -v
 
 # With coverage report
-uv run pytest tests/ --cov=a2ascanner --cov-report=term-missing
+pytest tests/ --cov=a2ascanner --cov-report=term-missing
 
 # Run specific test categories
-uv run pytest tests/test_api.py          # API tests
-uv run pytest tests/test_analyzers.py    # Analyzer tests
-uv run pytest tests/test_yara.py         # YARA rule tests
-uv run pytest tests/test_heuristic.py    # Heuristic tests
+pytest tests/test_api.py          # API tests
+pytest tests/test_analyzers.py    # Analyzer tests
+pytest tests/test_yara.py         # YARA rule tests
+pytest tests/test_heuristic.py    # Heuristic tests
 ```
+
+> **Note**: You can also use `uv run pytest tests/` without activating the virtual environment.
 
 ### Managing Dependencies
 
@@ -738,51 +777,30 @@ UV is a fast Python package manager and environment manager written in Rust:
 ### Common Commands
 
 ```bash
-# Run commands without activating venv
-uv run <command>
-
-# Examples
-uv run a2a-scanner scan-card test.json
-uv run pytest tests/
-uv run python script.py
-
-# Sync environment
-uv sync
-
-# Show installed packages
-uv pip list
-
-# Lock dependencies
-uv lock
-```
-
-### Manual Environment Activation
-
-If you prefer traditional activation:
-
-```bash
+# Activate virtual environment
 source .venv/bin/activate  # Linux/macOS
 .venv\Scripts\activate     # Windows
 
 # Then use commands directly
 a2a-scanner scan-card test.json
 pytest tests/
+python script.py
 ```
 
 ---
 
 ## Documentation
 
-For detailed documentation, see the `docs/` directory:
+For detailed documentation, see the [docs/](https://github.com/cisco-ai-defense/a2a-scanner/tree/main/docs) directory:
 
-- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines
-- **[DEV_MODE_GUIDE.md](./DEV_MODE_GUIDE.md)** - Development mode documentation
-- **[docs/architecture.md](./docs/architecture.md)** - System architecture
-- **[docs/analyzer_guide.md](./docs/analyzer_guide.md)** - Analyzer implementation guide
-- **[docs/usage_guide.md](./docs/usage_guide.md)** - Comprehensive usage guide
-- **[docs/testing_guide.md](./docs/testing_guide.md)** - Testing documentation
-- **[docs/a2a-threats-taxonomy.md](./docs/a2a-threats-taxonomy.md)** - A2A threat taxonomy reference
-- **[docs/scanner_placement_guide.md](./docs/scanner_placement_guide.md)** - Scanner placement strategies
+- **[CONTRIBUTING.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/CONTRIBUTING.md)** - Contribution guidelines
+- **[DEV_MODE_GUIDE.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/DEV_MODE_GUIDE.md)** - Development mode documentation
+- **[docs/architecture.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/architecture.md)** - System architecture
+- **[docs/analyzer_guide.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/analyzer_guide.md)** - Analyzer implementation guide
+- **[docs/usage_guide.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/usage_guide.md)** - Comprehensive usage guide
+- **[docs/testing_guide.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/testing_guide.md)** - Testing documentation
+- **[docs/a2a-threats-taxonomy.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/a2a-threats-taxonomy.md)** - A2A threat taxonomy reference
+- **[docs/scanner_placement_guide.md](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/docs/scanner_placement_guide.md)** - Scanner placement strategies
 
 ---
 
@@ -797,7 +815,7 @@ For enterprise-grade A2A security solutions and support:
 
 ## License
 
-Distributed under the Apache 2.0 License. See [LICENSE](./LICENSE) for more information.
+Distributed under the Apache 2.0 License. See [LICENSE](https://github.com/cisco-ai-defense/a2a-scanner/blob/main/LICENSE) for more information.
 
 Copyright 2025 Cisco Systems, Inc. and its affiliates
 
@@ -807,7 +825,6 @@ Copyright 2025 Cisco Systems, Inc. and its affiliates
 
 - **[A2A Protocol](https://github.com/a2aproject/A2A)** - Official A2A specification
 - **[A2A Samples](https://github.com/a2aproject/a2a-samples)** - Example agent implementations
-- **[Cisco AI Defense A2A Scanner](https://github.com/cisco-ai-defense/a2a-scanner)** - Agent-to-Agent (A2A) Protocol Scanner
 
 ---
 

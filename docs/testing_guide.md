@@ -8,20 +8,44 @@ This guide shows you how to run and test the A2A Scanner using the example threa
 
 ### 1. Install the Scanner
 
+**Installing as a CLI Tool**
+
 ```bash
+# Install UV
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
+
+uv tool install --python 3.13 cisco-ai-a2a-scanner
+```
+
+Alternatively, you can install from source:
+
+```bash
+uv tool install --python 3.13 --from git+https://github.com/cisco-ai-defense/a2a-scanner cisco-ai-a2a-scanner
+```
+
+**Installing for Local Development**
+
+```bash
+git clone https://github.com/cisco-ai-defense/a2a-scanner.git
 cd a2a-scanner
 
-# Install with uv (recommended)
+# Install UV (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or: brew install uv
+
 uv sync
 
-# Or install with pip
-pip install -e .
+# Activate virtual environment
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
 ```
 
 ### 2. Verify Installation
 
 ```bash
 # Check CLI is available
+a2a-scanner list-analyzers
 a2a-scanner --help
 
 # Should show available commands:
@@ -262,9 +286,13 @@ a2a-scanner scan-file examples/a2a_threat_files/judge_persuade.py
 
 ### Issue: Command not found
 ```bash
-# Solution: Install the package
-uv sync
-# Or
+# Solution: Install the package from PyPI using uv (recommended)
+uv tool install --python 3.13 cisco-ai-a2a-scanner
+
+# Or using pip
+pip install cisco-ai-a2a-scanner
+
+# Or from source
 pip install -e .
 ```
 
@@ -354,13 +382,14 @@ jobs:
         with:
           python-version: '3.12'
       
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      
       - name: Install scanner
-        run: |
-          pip install -e .
+        run: uv tool install --python 3.13 cisco-ai-a2a-scanner
       
       - name: Scan for threats
-        run: |
-          a2a-scanner scan-directory examples/a2a_threat_files -a yara -a pattern
+        run: a2a-scanner scan-directory examples/a2a_threat_files -a yara -a pattern
 ```
 
 ---
