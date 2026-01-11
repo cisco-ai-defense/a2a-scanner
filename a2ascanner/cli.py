@@ -40,6 +40,33 @@ from .utils.logging_config import setup_logging
 console = Console()
 
 
+def parse_analyzer_list(analyzers):
+    """Parse analyzer names from CLI options.
+    
+    Handles both formats:
+    - Comma-separated: --analyzers yara,spec,heuristic
+    - Multiple flags: --analyzers yara --analyzers spec
+    
+    Args:
+        analyzers: Tuple of analyzer strings from Click multiple=True
+        
+    Returns:
+        List of analyzer names, or None if no analyzers specified
+    """
+    if not analyzers:
+        return None
+        
+    analyzer_list = []
+    for a in analyzers:
+        if ',' in a:
+            # Split comma-separated values
+            analyzer_list.extend([x.strip() for x in a.split(',')])
+        else:
+            analyzer_list.append(a.strip())
+    
+    return analyzer_list if analyzer_list else None
+
+
 def print_banner():
     """Print scanner banner."""
     banner = """
@@ -134,7 +161,7 @@ def scan_file(ctx, file_path, analyzers, output, format, no_deduplicate):
         # Run scan
         result = await scanner.scan_file(
             file_path=file_path,
-            analyzers=list(analyzers) if analyzers else None,
+            analyzers=parse_analyzer_list(analyzers),
         )
 
         # Display results based on format
@@ -189,7 +216,7 @@ def scan_registry(ctx, registry_url, analyzers, output):
         # Run scan
         result = await scanner.scan_registry(
             registry_url=registry_url,
-            analyzers=list(analyzers) if analyzers else None,
+            analyzers=parse_analyzer_list(analyzers),
         )
 
         # Print results
@@ -304,7 +331,7 @@ def scan_card(ctx, card_file, analyzers, output, format):
         # Run scan
         result = await scanner.scan_agent_card(
             card=card_data,
-            analyzers=list(analyzers) if analyzers else None,
+            analyzers=parse_analyzer_list(analyzers),
         )
 
         # Display results based on format
