@@ -175,7 +175,7 @@ class Scanner:
             target_name=card_name,
             target_type="agent_card",
             status="completed",
-            analyzers=list(self.analyzers),
+            analyzers=analyzer_list,  # Use actual analyzers that ran
             findings=findings,
             metadata={"agent_id": card.get("id"), "url": card.get("url")},
         )
@@ -230,11 +230,14 @@ class Scanner:
                         card_result = await self.scan_agent_card(card, analyzers)
                         findings.extend(card_result.findings)
 
+            # Determine which analyzers were used
+            analyzer_list = analyzers if analyzers else list(self.analyzers)
+
             result = ScanResult(
                 target_name=registry_url,
                 target_type="agent_registry",
                 status="completed",
-                analyzers=list(self.analyzers),
+                analyzers=analyzer_list,
                 findings=findings,
                 metadata={
                     "url": registry_url,
@@ -365,11 +368,15 @@ class Scanner:
                         if isinstance(item, dict):
                             result = await self.scan_agent_card(item, analyzers)
                             findings.extend(result.findings)
+                    
+                    # Determine which analyzers were used
+                    analyzer_list = analyzers if analyzers else list(self.analyzers)
+                    
                     return ScanResult(
                         target_name=path.name,
                         target_type="file",
                         status="completed",
-                        analyzers=list(self.analyzers),
+                        analyzers=analyzer_list,
                         findings=findings,
                         metadata={"file_path": file_path},
                     )
@@ -403,7 +410,7 @@ class Scanner:
             target_name=path.name,
             target_type="file",
             status="completed",
-            analyzers=list(self.analyzers),
+            analyzers=analyzer_list,
             findings=findings,
             metadata=context,
         )
