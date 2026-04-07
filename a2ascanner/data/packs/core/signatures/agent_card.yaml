@@ -1,0 +1,8 @@
+- id: superlative_language
+  category: agent_card_spoofing
+  severity: MEDIUM
+  description: "Detects superlative language that may indicate discovery poisoning"
+  patterns:
+    - "\\b(always|never|best|perfect|ultimate|superior|guaranteed|100%|all tasks|everything|pick me|choose me)\\b"
+  file_types: ["json", "yaml", "txt"]
+  remediation: "Remove exaggerated claims from agent descriptions"

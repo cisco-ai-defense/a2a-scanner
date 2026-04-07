@@ -1,0 +1,153 @@
+pack:
+  name: core
+  version: "1.0.0"
+  description: "Core A2A protocol security rules"
+
+rules:
+  AgentCard_EmojiSpam:
+    enabled: true
+    severity: HIGH
+  AgentCard_MassRegistration:
+    enabled: true
+    severity: HIGH
+  AgentCard_PrivilegeEscalation:
+    enabled: true
+    severity: HIGH
+  AgentCard_SuperlativeLanguage:
+    enabled: true
+    severity: HIGH
+  AgentCard_Typosquatting:
+    enabled: true
+    severity: HIGH
+  AgentInstructionOverride:
+    enabled: true
+    severity: HIGH
+  AgentNameImpersonation:
+    enabled: true
+    severity: HIGH
+  ContextManipulation:
+    enabled: true
+    severity: HIGH
+  CredentialTransmission:
+    enabled: true
+    severity: HIGH
+  DangerousCapabilityCombination:
+    enabled: true
+    severity: HIGH
+  EnvironmentVariableLeakage:
+    enabled: true
+    severity: HIGH
+  ExcessiveCapabilities:
+    enabled: true
+    severity: HIGH
+  FakeVerificationClaims:
+    enabled: true
+    severity: HIGH
+  HardcodedAPIKeys:
+    enabled: true
+    severity: HIGH
+  HardcodedPasswords:
+    enabled: true
+    severity: HIGH
+  InsecureLogging:
+    enabled: true
+    severity: HIGH
+  MessageInjection_CommandExecution:
+    enabled: true
+    severity: HIGH
+  MessageInjection_ContextPoisoning:
+    enabled: true
+    severity: HIGH
+  MessageInjection_DataExfiltration:
+    enabled: true
+    severity: HIGH
+  MessageInjection_DirectivePatterns:
+    enabled: true
+    severity: HIGH
+  MessageInjection_HiddenInstructions:
+    enabled: true
+    severity: HIGH
+  MessageInjection_RoleManipulation:
+    enabled: true
+    severity: HIGH
+  PrivilegedOperations:
+    enabled: true
+    severity: HIGH
+  PromptInjectionAttempt:
+    enabled: true
+    severity: HIGH
+  PromptLeaking:
+    enabled: true
+    severity: HIGH
+  RoutingManipulation_FanoutDOS:
+    enabled: true
+    severity: HIGH
+  RoutingManipulation_JudgePersuasion:
+    enabled: true
+    severity: HIGH
+  RoutingManipulation_PriorityAbuse:
+    enabled: true
+    severity: HIGH
+  RoutingManipulation_TaskInjection:
+    enabled: true
+    severity: HIGH
+  SecretInComment:
+    enabled: true
+    severity: HIGH
+  SensitiveDataExposure:
+    enabled: true
+    severity: HIGH
+  SuspiciousAgentEndpoint_Exfiltration:
+    enabled: true
+    severity: HIGH
+  SuspiciousAgent_CapabilityExaggeration:
+    enabled: true
+    severity: HIGH
+  SuspiciousAgent_CodeExecution:
+    enabled: true
+    severity: HIGH
+  SuspiciousAgent_CredentialHarvesting:
+    enabled: true
+    severity: HIGH
+  SuspiciousAgent_FileSystemAccess:
+    enabled: true
+    severity: HIGH
+  SuspiciousAgent_SSRF:
+    enabled: true
+    severity: HIGH
+  SuspiciousDomainSpoofing:
+    enabled: true
+    severity: HIGH
+  SuspiciousPromptTemplate:
+    enabled: true
+    severity: HIGH
+  UnauthorizedNetworkAccess_AITM:
+    enabled: true
+    severity: HIGH
+  UnauthorizedNetworkAccess_InsecureHTTP:
+    enabled: true
+    severity: HIGH
+  UnauthorizedNetworkAccess_SuspiciousRedirect:
+    enabled: true
+    severity: HIGH
+  UnauthorizedNetworkAccess_UnsignedMessages:
+    enabled: true
+    severity: HIGH
+  UnconstrainedCapabilities:
+    enabled: true
+    severity: HIGH
+  superlative_language:
+    enabled: true
+    severity: MEDIUM
+  suspicious_localhost_url:
+    enabled: true
+    severity: MEDIUM
+  cloud_metadata_access:
+    enabled: true
+    severity: HIGH
+  command_injection:
+    enabled: true
+    severity: HIGH
+  credential_exposure:
+    enabled: true
+    severity: MEDIUM

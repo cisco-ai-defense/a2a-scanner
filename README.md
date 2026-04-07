@@ -359,7 +359,7 @@ The scanner detects threats across the entire A2A protocol stack:
 
 Static pattern matching for detecting malicious patterns in agent cards, including agent impersonation, prompt injection, capability abuse, data exfiltration, routing manipulation, and tool poisoning attacks.
 
-**Location**: `a2ascanner/data/yara_rules/`
+**Location**: `a2ascanner/data/packs/core/yara/`
 
 #### 2. Spec Analyzer
 

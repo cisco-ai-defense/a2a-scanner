@@ -198,10 +198,8 @@ rule MessageInjection_HiddenInstructions
         $html_hidden1 = /<!--[^>]*\b(IGNORE|OVERRIDE|SYSTEM|EXECUTE)\b[^>]*-->/i
         $html_hidden2 = /(data-instruction|data-command|data-system)\s*=\s*"[^"]*\b(IGNORE|OVERRIDE|EXECUTE)\b/i
         
-        // FIXED: Properly check for actual invisible Unicode characters before directive words
-        // This now requires the invisible character to be PRESENT, not just any text with keywords
-        $invisible_valid1 = /[\u200B-\u200D]+\s*(IGNORE|OVERRIDE|SYSTEM|EXECUTE)/i
-        $invisible_valid2 = /[\u200E\u200F\uFEFF]+\s*(IGNORE|OVERRIDE|SYSTEM|EXECUTE)/i
+        // Invisible-Unicode + directive matching removed: yara-x regex engine does not allow
+        // Unicode in character classes. Metadata/HTML/JSON hidden patterns below still apply.
         
         // Hidden in non-rendered JSON fields  
         // TUNED: More restrictive to avoid false positives on source code
@@ -217,7 +215,7 @@ rule MessageInjection_HiddenInstructions
         $code_exclude6 = /class.*execute/i  // Class name with execute
         
     condition:
-        any of ($meta*, $html*, $invisible*, $json*) and not any of ($code_exclude*)
+        any of ($meta*, $html*, $json*) and not any of ($code_exclude*)
 }
 
 rule MessageInjection_ContextPoisoning

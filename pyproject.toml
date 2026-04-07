@@ -1,56 +1,104 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.24.0", "hatch-vcs"]
+build-backend = "hatchling.build"
 
 [project]
 name = "cisco-ai-a2a-scanner"
-version = "1.0.1"
+dynamic = ["version"]
 description = "A comprehensive security scanner for Agent-to-Agent (A2A) protocol threats"
-authors = [
-    {name = "Cisco"},
-]
 readme = "README.md"
-requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Cisco" },
+]
+keywords = [
+    "a2a",
+    "agent-to-agent",
+    "security",
+    "scanner",
+    "static-analysis",
+    "fastapi",
+    "llm",
+    "threat-detection",
+]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Operating System :: OS Independent",
-    "Intended Audience :: Developers",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
     "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 dependencies = [
-    "httpx>=0.28.1",
-    "yara-python>=4.5.4",
-    "fastapi>=0.110.0",
-    "uvicorn>=0.29.0",
-    "pydantic>=2.6.0",
-    "python-dotenv>=1.0.0",
-    "litellm>=1.77.0",
-    "aiohttp>=3.9.0",
-    "click>=8.1.0",
-    "rich>=13.7.0",
-    "jsonschema>=4.20.0",
-    "requests>=2.31.0",
+    "fastapi==0.115.6",
+    "httpx==0.28.1",
+    "litellm==1.77.0",
+    "pydantic==2.10.6",
+    "python-dotenv==1.0.1",
+    "python-multipart==0.0.20",
+    "PyYAML==6.0.3",
+    "rich==14.3.3",
+    "tabulate==0.9.0",
+    "textual==7.5.0",
+    "uvicorn==0.34.0",
+    "yara-x==1.13.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/cisco-ai-defense/a2a-scanner"
+Documentation = "https://github.com/cisco-ai-defense/a2a-scanner/tree/main/docs"
+Repository = "https://github.com/cisco-ai-defense/a2a-scanner.git"
+Issues = "https://github.com/cisco-ai-defense/a2a-scanner/issues"
+Changelog = "https://github.com/cisco-ai-defense/a2a-scanner/releases"
 
 [dependency-groups]
 dev = [
-    "pytest>=8.4.1",
-    "pytest-asyncio>=1.0.0",
-    "pytest-cov>=6.2.1",
-    "respx>=0.22.0",
-    "black>=24.0.0",
-    "flake8>=7.0.0",
-    "isort>=5.13.0",
-    "mypy>=1.8.0",
-    "pre-commit>=3.6.0",
+    "liccheck==4.5.0",
+    "mypy==1.14.1",
+    "pip-audit==2.7.3",
+    "pre-commit==4.0.1",
+    "pytest==8.4.1",
+    "pytest-asyncio==1.0.0",
+    "pytest-cov==6.2.1",
+    "ruff==0.14.12",
 ]
 
 [project.scripts]
-a2a-scanner = "a2ascanner.cli:main"
+a2a-scanner = "a2ascanner.cli.cli:main"
 a2a-scanner-api = "a2ascanner.api.server:main"
-a2ascanner-proxy = "a2ascanner.proxy.cli:main"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["a2ascanner"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/a2ascanner",
+    "/examples",
+    "/tests",
+    "/docs",
+    "/README.md",
+    "/LICENSE",
+    "/CONTRIBUTING.md",
+    "/pyproject.toml",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
@@ -58,41 +106,44 @@ testpaths = ["tests"]
 addopts = "--maxfail=1 -v"
 asyncio_mode = "auto"
 filterwarnings = [
-    # Silence Pydantic serializer warnings emitted by LiteLLM models
     "ignore:Pydantic serializer warnings:UserWarning:pydantic.*",
 ]
 markers = [
-    "integration: mark for tests that hit external services (run with -m integration)",
+    "slow: tests that take noticeably longer than the rest of the suite",
+    "integration: tests that hit external services or the network",
+    "requires_llm: tests that need a configured LLM provider or API key",
+    "e2e: end-to-end tests spanning multiple components or processes",
 ]
 
-[tool.setuptools.packages.find]
-include = ["a2ascanner*", "examples*", "data*"]
+[tool.coverage.run]
+source = ["a2ascanner"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__main__.py",
+]
 
-[tool.setuptools.package-data]
-"a2ascanner" = ["data/prompts/*.md", "data/yara_rules/*.yara", "data/yara_rules/*.yar"]
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    'if __name__ == "__main__":',
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
+]
 
-# Code formatting and linting configuration
-[tool.black]
-line-length = 88
-target-version = ['py311', 'py312', 'py313']
-include = '\.pyi?$'
+[tool.ruff]
+line-length = 120
+target-version = "py310"
 
-[tool.isort]
-profile = "black"
-line_length = 88
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
-
-[tool.flake8]
-max-line-length = 88
-extend-ignore = ["E203", "W503", "E501"]
-exclude = [".git", "__pycache__", "build", "dist", ".venv", "venv"]
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "F401", "F841", "B904", "B006", "B007", "B008", "B023"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
@@ -108,7 +159,32 @@ strict_equality = true
 
 [[tool.mypy.overrides]]
 module = [
-    "yara",
     "litellm",
+    "tabulate",
+    "textual",
+    "yaml",
+    "yara",
+    "yara_x",
 ]
 ignore_missing_imports = true
+
+[tool.liccheck]
+authorized_licenses = [
+    "apache",
+    "apache 2.0",
+    "Apache License, Version 2.0",
+    "Apache Software License",
+    "apache software license",
+    "bsd",
+    "new bsd",
+    "bsd license",
+    "new bsd license",
+    "simplified bsd",
+    "mit",
+    "mit license",
+    "Mozilla Public License 2.0 (MPL 2.0)",
+    "python software foundation license",
+    "The Unlicense (Unlicense)",
+    "isc license (iscl)",
+    "ISC License (ISCL)",
+]

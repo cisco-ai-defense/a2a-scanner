@@ -48,7 +48,7 @@ try:
 except ImportError:
     LITELLM_AVAILABLE = False
 
-from .base import BaseAnalyzer, SecurityFinding
+from .base import SecurityFinding
 from ...config.config import Config
 from ...utils.logging_config import get_logger
 

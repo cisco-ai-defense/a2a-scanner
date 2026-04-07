@@ -23,7 +23,34 @@ for comprehensive testing across all scanner components.
 
 import pytest
 import os
+from dataclasses import replace
 from pathlib import Path
+
+import yaml
+
+from a2ascanner.core.analyzers.static import StaticAnalyzer
+from a2ascanner.core.scan_policy import ScanPolicy
+
+
+@pytest.fixture
+def scan_policy_default():
+    """Built-in default scan policy (from packaged default_policy.yaml when present)."""
+    return ScanPolicy.default()
+
+
+@pytest.fixture
+def scan_policy_with_disabled_rules(scan_policy_default):
+    """Policy identical to default but with representative rules disabled for tests."""
+    return replace(
+        scan_policy_default,
+        disabled_rules=["superlative_language", "suspicious_localhost_url"],
+    )
+
+
+@pytest.fixture
+def static_analyzer(scan_policy_default):
+    """Static analyzer instance using the default scan policy."""
+    return StaticAnalyzer(policy=scan_policy_default)
 
 
 @pytest.fixture(scope="session")
@@ -159,3 +186,33 @@ def get_instance_metadata():
         "unsafe": unsafe,
         "metadata": metadata
     }
+
+
+@pytest.fixture
+def make_policy(tmp_path):
+    """Factory fixture for creating ScanPolicy from a YAML string."""
+    _counter = [0]
+
+    def _make(yaml_str: str) -> ScanPolicy:
+        _counter[0] += 1
+        p = tmp_path / f"policy-{_counter[0]}.yaml"
+        p.write_text(yaml_str)
+        return ScanPolicy.from_yaml(str(p))
+
+    return _make
+
+
+@pytest.fixture
+def make_scanner():
+    """Factory fixture for creating a Scanner with a given policy."""
+    from a2ascanner.core.analyzer_factory import build_core_analyzers
+    from a2ascanner.core.scanner import Scanner
+    from a2ascanner.config.config import Config
+
+    def _make(policy=None, **kwargs):
+        pol = policy or ScanPolicy.default()
+        analyzers = build_core_analyzers(pol)
+        return Scanner(config=Config(), policy=pol, analyzers=analyzers, **kwargs)
+
+    return _make
+

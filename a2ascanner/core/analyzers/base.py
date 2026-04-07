@@ -59,7 +59,7 @@ class SecurityFinding:
         """
         # Validate and normalize inputs
         self.severity = self._normalize_severity(
-            severity, ["HIGH", "MEDIUM", "LOW", "SAFE", "UNKNOWN"], "UNKNOWN"
+            severity, ["CRITICAL", "HIGH", "MEDIUM", "LOW", "SAFE", "UNKNOWN"], "UNKNOWN"
         )
         self.summary = summary
         self.threat_name = threat_name

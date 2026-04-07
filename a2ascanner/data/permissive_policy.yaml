@@ -1,0 +1,23 @@
+policy_name: permissive
+policy_version: "1.0"
+description: "Lightweight A2A scan policy — skips endpoint probing and LLM; relaxed deduplication"
+
+disabled_rules: []
+
+severity_overrides: {}
+
+analyzers:
+  static: true
+  spec: true
+  endpoint: false
+  llm: false
+
+llm_analysis:
+  enabled: false
+  model: null
+  max_output_tokens: 4096
+
+finding_output:
+  dedupe_exact_findings: false
+  dedupe_same_issue_per_location: false
+  attach_policy_fingerprint: false

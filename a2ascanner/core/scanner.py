@@ -24,14 +24,17 @@ multi-analyzer coordination for advanced threat detection.
 
 import asyncio
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from pathlib import Path
 
 import httpx
 
 from ..config.config import Config
+
+if TYPE_CHECKING:
+    from .scan_policy import ScanPolicy
 from ..utils.logging_config import get_logger, set_scan_context
-from .analyzers.base import BaseAnalyzer
+from .analyzers.base import BaseAnalyzer, SecurityFinding
 from .analyzers.yara_analyzer import YaraAnalyzer
 from .analyzers.heuristic_analyzer import HeuristicAnalyzer
 from .analyzers.llm_analyzer import LLMAnalyzer
@@ -56,6 +59,8 @@ class Scanner:
         custom_analyzers: Optional[List[BaseAnalyzer]] = None,
         rules_dir: Optional[str] = None,
         enable_meta_analysis: bool = False,
+        policy: Optional["ScanPolicy"] = None,
+        analyzers: Optional[List[BaseAnalyzer]] = None,
     ):
         """Initialize the A2A scanner.
 
@@ -64,72 +69,110 @@ class Scanner:
             custom_analyzers: Optional list of custom analyzer instances.
             rules_dir: Optional custom path to YARA rules directory.
             enable_meta_analysis: Whether to enable LLM meta-analysis by default.
+            policy: Optional scan policy; disabled rules and severity overrides apply
+                to findings returned from analyzer runs.
+            analyzers: Optional pre-built analyzer instances; when set, replaces
+                default YARA/heuristic/spec construction while preserving meta setup.
         """
         self.config = config or Config()
+        self.policy = policy
         self.custom_analyzers = custom_analyzers or []
         self.enable_meta_analysis = enable_meta_analysis
         self.meta_analyzer: Optional[LLMMetaAnalyzer] = None
 
-        # Initialize analyzers
-        self._init_analyzers(rules_dir)
-
-        logger.info("A2A Scanner initialized")
-
-    def _init_analyzers(self, rules_dir: Optional[str] = None):
-        """Initialize all available analyzers.
-
-        Args:
-            rules_dir: Optional custom YARA rules directory.
-        """
-        self.analyzers: Dict[str, BaseAnalyzer] = {}
-
-        # Always initialize YARA and Pattern analyzers (no API key required)
-        try:
-            self.analyzers["yara"] = YaraAnalyzer(rules_dir=rules_dir)
-            logger.info("YARA analyzer initialized")
-        except Exception as e:
-            logger.warning(f"Failed to initialize YARA analyzer: {e}")
-
-        try:
-            self.analyzers["heuristic"] = HeuristicAnalyzer()
-            logger.info("Heuristic analyzer initialized")
-        except Exception as e:
-            logger.warning(f"Failed to initialize Heuristic analyzer: {e}")
-
-        try:
-            self.analyzers["spec"] = SpecComplianceAnalyzer()
-            logger.info("Spec analyzer initialized")
-        except Exception as e:
-            logger.warning(f"Failed to initialize Spec analyzer: {e}")
-
-        try:
-            self.analyzers["endpoint"] = EndpointAnalyzer()
-            logger.info("Endpoint analyzer initialized")
-        except Exception as e:
-            logger.warning(f"Failed to initialize Endpoint analyzer: {e}")
-
-        # Initialize LLM analyzer if API key is configured
-        if self.config.llm_api_key:
-            try:
-                self.analyzers["llm"] = LLMAnalyzer(self.config)
-                logger.info("LLM analyzer initialized")
-            except Exception as e:
-                logger.warning(f"Failed to initialize LLM analyzer: {e}")
-            
-            # Initialize LLM Meta-Analyzer if enabled
-            if self.enable_meta_analysis:
+        if analyzers is not None:
+            self.analyzers = {}
+            self._register_analyzer_instances(analyzers)
+            if self.enable_meta_analysis and self.config.llm_api_key:
                 try:
                     self.meta_analyzer = LLMMetaAnalyzer(self.config)
                     logger.info("LLM Meta-Analyzer initialized")
                 except Exception as e:
                     logger.warning(f"Failed to initialize LLM Meta-Analyzer: {e}")
         else:
-            logger.info("LLM analyzer not initialized (no API key configured)")
+            # Initialize analyzers
+            self._init_analyzers(rules_dir)
+
+        logger.info("A2A Scanner initialized")
+
+    @staticmethod
+    def _analyzer_registry_key(analyzer: BaseAnalyzer) -> str:
+        """Map analyzer display names to registry keys used by scan routing."""
+        key = analyzer.name.lower()
+        if key == "speccompliance":
+            return "spec"
+        if key == "static_analyzer":
+            return "yara"
+        return key
+
+    def _register_analyzer_instances(self, instances: List[BaseAnalyzer]) -> None:
+        """Populate ``self.analyzers`` from pre-built instances."""
+        for analyzer in instances:
+            self.analyzers[self._analyzer_registry_key(analyzer)] = analyzer
+        for analyzer in self.custom_analyzers:
+            self.analyzers[self._analyzer_registry_key(analyzer)] = analyzer
+
+    def _init_analyzers(self, rules_dir: Optional[str] = None):
+        """Initialize analyzers via the analyzer factory for consistent behavior."""
+        from .analyzer_factory import build_core_analyzers
+        from .scan_policy import ScanPolicy
+
+        self.analyzers: Dict[str, BaseAnalyzer] = {}
+
+        policy = self.policy or ScanPolicy.default()
+
+        try:
+            core = build_core_analyzers(
+                policy,
+                custom_yara_rules_path=rules_dir,
+            )
+            for analyzer in core:
+                self.analyzers[self._analyzer_registry_key(analyzer)] = analyzer
+        except Exception as e:
+            logger.warning("Failed to build core analyzers via factory: %s", e)
+            # Fallback to legacy YARA-only
+            try:
+                self.analyzers["yara"] = YaraAnalyzer(rules_dir=rules_dir)
+            except Exception as exc:
+                logger.warning("Failed to initialize YARA analyzer: %s", exc)
+
+        # Always add heuristic if not already present
+        if "heuristic" not in self.analyzers:
+            try:
+                self.analyzers["heuristic"] = HeuristicAnalyzer()
+            except Exception as e:
+                logger.warning("Failed to initialize Heuristic analyzer: %s", e)
+
+        # Add endpoint analyzer
+        if "endpoint" not in self.analyzers:
+            try:
+                self.analyzers["endpoint"] = EndpointAnalyzer()
+            except Exception as e:
+                logger.warning("Failed to initialize Endpoint analyzer: %s", e)
+
+        # Add spec if not already present (factory includes it when policy.analyzers.spec)
+        if "spec" not in self.analyzers:
+            try:
+                self.analyzers["spec"] = SpecComplianceAnalyzer()
+            except Exception as e:
+                logger.warning("Failed to initialize Spec analyzer: %s", e)
+
+        # Initialize LLM analyzer if API key is configured
+        if self.config.llm_api_key:
+            try:
+                self.analyzers["llm"] = LLMAnalyzer(self.config)
+            except Exception as e:
+                logger.warning("Failed to initialize LLM analyzer: %s", e)
+
+            if self.enable_meta_analysis:
+                try:
+                    self.meta_analyzer = LLMMetaAnalyzer(self.config)
+                except Exception as e:
+                    logger.warning("Failed to initialize LLM Meta-Analyzer: %s", e)
 
         # Add custom analyzers
         for analyzer in self.custom_analyzers:
             self.analyzers[analyzer.name.lower()] = analyzer
-            logger.info(f"Custom analyzer '{analyzer.name}' initialized")
 
     async def scan_agent_card(
         self,
@@ -228,10 +271,11 @@ class Scanner:
             # Check for mass registration
             if isinstance(registry_data, list) and len(registry_data) > 50:
                 findings.append(
-                    self.analyzers["pattern"].create_security_finding(
+                    SecurityFinding(
                         severity="MEDIUM",
                         summary=f"Large number of agents in registry: {len(registry_data)}",
                         threat_name="Discovery Poisoning - Mass Registration",
+                        analyzer="Registry",
                         details={"agent_count": len(registry_data)},
                     )
                 )
@@ -428,44 +472,133 @@ class Scanner:
             metadata=context,
         )
 
+    @staticmethod
+    def _finding_rule_id(finding: SecurityFinding) -> str:
+        """Resolve policy rule id for a finding (details rule_id, else threat name)."""
+        rid = (finding.details or {}).get("rule_id")
+        if rid:
+            return str(rid)
+        return finding.threat_name
+
+    def _build_enrichment(self, findings: List[SecurityFinding]) -> str:
+        """Summarize Phase 1 findings for LLM enrichment context."""
+        lines: List[str] = []
+        for i, f in enumerate(findings, 1):
+            lines.append(
+                f"{i}. [{f.severity}] {f.threat_name}: {f.summary} (analyzer={f.analyzer})"
+            )
+        return "\n".join(lines)
+
+    def _apply_policy(self, findings: List[SecurityFinding]) -> List[SecurityFinding]:
+        """Filter by disabled rules and apply severity overrides from policy."""
+        if not self.policy:
+            return findings
+        out: List[SecurityFinding] = []
+        for f in findings:
+            rule_id = self._finding_rule_id(f)
+            if not self.policy.is_rule_enabled(rule_id):
+                continue
+            eff = self.policy.get_effective_severity(rule_id, f.severity)
+            if eff != f.severity:
+                f.severity = eff
+            out.append(f)
+        return out
+
+    def _deduplicate(self, findings: List[SecurityFinding]) -> List[SecurityFinding]:
+        """Drop duplicate findings respecting policy.finding_output flags."""
+        fo = getattr(self.policy, "finding_output", None) if self.policy else None
+
+        if fo and not fo.dedupe_exact_findings:
+            return findings
+
+        seen: set[tuple[str, str]] = set()
+        out: List[SecurityFinding] = []
+        for f in findings:
+            key = (f.threat_name, f.summary)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(f)
+        return out
+
+    def _annotate_findings(self, findings: List[SecurityFinding]) -> List[SecurityFinding]:
+        """Add policy fingerprint and co-occurrence metadata when enabled."""
+        if not self.policy:
+            return findings
+        fo = self.policy.finding_output
+
+        if fo.attach_policy_fingerprint:
+            import hashlib
+
+            policy_fp = hashlib.sha256(
+                f"{self.policy.policy_name}:{self.policy.policy_version}:{sorted(self.policy.disabled_rules)}".encode()
+            ).hexdigest()[:12]
+            for f in findings:
+                if isinstance(f.details, dict):
+                    f.details["policy_fingerprint"] = policy_fp
+
+        if fo.annotate_same_path_rule_cooccurrence:
+            from collections import Counter
+
+            rule_ids = [self._finding_rule_id(f) for f in findings]
+            counts = Counter(rule_ids)
+            for f in findings:
+                rid = self._finding_rule_id(f)
+                if counts[rid] > 1 and isinstance(f.details, dict):
+                    f.details["same_rule_count"] = counts[rid]
+
+        return findings
+
     async def _run_analyzers(
         self,
         content: str,
         context: Dict[str, Any],
         analyzers: Optional[List[str]] = None,
-    ) -> List[Any]:
-        """Run specified analyzers on content.
+    ) -> List[SecurityFinding]:
+        """Run analyzers in two phases: non-LLM concurrently, then LLM with enrichment.
 
         Args:
             content: Content to analyze
             context: Analysis context
-            analyzers: Optional list of analyzer names. If None, uses all.
+            analyzers: Optional list of analyzer registry keys. If None, uses all.
 
         Returns:
-            List of all findings from analyzers.
+            Findings after policy filtering and deduplication.
         """
-        # Determine which analyzers to run
-        if analyzers is None:
-            analyzers_to_run = list(self.analyzers.values())
-        else:
-            analyzers_to_run = [
-                self.analyzers[name] for name in analyzers if name in self.analyzers
-            ]
+        keys = list(analyzers) if analyzers is not None else list(self.analyzers.keys())
+        selected = [self.analyzers[k] for k in keys if k in self.analyzers]
 
-        # Run analyzers concurrently
-        tasks = [analyzer.analyze(content, context) for analyzer in analyzers_to_run]
+        phase1 = [a for a in selected if a.name.lower() != "llm"]
+        phase1_results = await asyncio.gather(
+            *[a.analyze(content, context) for a in phase1],
+            return_exceptions=True,
+        )
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Collect findings
-        all_findings = []
-        for i, result in enumerate(results):
+        findings: List[SecurityFinding] = []
+        for result in phase1_results:
             if isinstance(result, Exception):
-                logger.error(f"Analyzer failed: {result}")
-            elif isinstance(result, list):
-                all_findings.extend(result)
+                logger.error("Analyzer failed: %s", result)
+                continue
+            if isinstance(result, list):
+                findings.extend(result)
 
-        return all_findings
+        llm_analyzers = [a for a in selected if a.name.lower() == "llm"]
+        if llm_analyzers:
+            enrichment = self._build_enrichment(findings) if findings else ""
+            for analyzer in llm_analyzers:
+                if findings and hasattr(analyzer, "set_enrichment_context"):
+                    analyzer.set_enrichment_context(enrichment)
+                try:
+                    llm_findings = await analyzer.analyze(content, context)
+                    findings.extend(llm_findings)
+                except Exception as e:
+                    logger.warning("LLM analysis failed: %s", e)
+
+        findings = self._apply_policy(findings)
+        findings = self._deduplicate(findings)
+        findings = self._annotate_findings(findings)
+
+        return findings
 
     def get_available_analyzers(self) -> List[str]:
         """Get list of available analyzer names.

@@ -1,0 +1,38 @@
+- id: suspicious_localhost_url
+  category: suspicious_endpoint
+  severity: MEDIUM
+  description: "Detects URLs pointing to localhost or private IPs"
+  patterns:
+    - "https?://(?:localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0|\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):\\d{4,5}"
+  file_types: ["json", "yaml", "txt"]
+  remediation: "Use production URLs instead of localhost references"
+
+- id: cloud_metadata_access
+  category: data_leakage
+  severity: HIGH
+  description: "Detects cloud metadata endpoint access attempts"
+  patterns:
+    - "(?:169\\.254\\.169\\.254|metadata\\.google\\.internal|metadata\\.azure\\.com)"
+  file_types: ["json", "yaml", "txt", "py", "js"]
+  remediation: "Remove references to cloud metadata endpoints"
+
+- id: command_injection
+  category: message_injection
+  severity: HIGH
+  description: "Detects command injection patterns"
+  patterns:
+    - "\\b(?:eval|exec|system)\\s*\\("
+    - "\\bsubprocess\\s*\\."
+    - "\\bpopen\\s*\\("
+    - "shell\\s*=\\s*True"
+  file_types: ["json", "yaml", "txt", "py", "js"]
+  remediation: "Avoid command execution patterns in agent definitions"
+
+- id: credential_exposure
+  category: data_leakage
+  severity: MEDIUM
+  description: "Detects hardcoded credentials or credential patterns"
+  patterns:
+    - "(?:password|api[_-]?key|secret|token|credential)\\s*[:=]"
+  file_types: ["json", "yaml", "txt", "py", "js"]
+  remediation: "Use environment variables or secrets management for credentials"
