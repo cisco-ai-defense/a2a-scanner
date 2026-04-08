@@ -58,8 +58,24 @@ _POLICY_DIR = Path("policies").resolve()
 
 
 def _resolve_policy(policy_name: Optional[str]) -> ScanPolicy:
+    """Resolve a policy name to a ScanPolicy, with safe handling of file-based policies.
+
+    The policy name may refer to a built-in preset or to a YAML file under
+    the configured _POLICY_DIR directory. When resolving file-based policies,
+    this function enforces that the resulting path is strictly contained
+    within _POLICY_DIR to prevent directory traversal or access to arbitrary
+    files on the filesystem.
+    """
     if not policy_name:
         return ScanPolicy.default()
+
+    # Normalize simple whitespace-only or empty strings to default behavior.
+    if isinstance(policy_name, str):
+        policy_name = policy_name.strip()
+        if not policy_name:
+            return ScanPolicy.default()
+
+    # First, try resolving the policy as a named preset.
     try:
         return ScanPolicy.from_preset(policy_name)
     except ValueError:
@@ -69,16 +85,31 @@ def _resolve_policy(policy_name: Optional[str]) -> ScanPolicy:
 
     # Treat the policy name as a relative path under _POLICY_DIR and
     # ensure the resulting path cannot escape that directory.
-    candidate = (_POLICY_DIR / policy_name).resolve()
     try:
-        # Ensure candidate is within the policy directory
-        if _POLICY_DIR == candidate or _POLICY_DIR in candidate.parents:
-            if candidate.is_file():
-                return ScanPolicy.from_yaml(candidate)
+        candidate = (_POLICY_DIR / policy_name).resolve()
     except Exception:
-        # Any issues resolving or validating the path fall through
+        logger.warning("Failed to resolve policy path %r", policy_name, exc_info=True)
+        return ScanPolicy.default()
+
+    try:
+        # Ensure candidate is within the policy directory. Using relative_to
+        # provides a clear containment check and prevents directory traversal.
+        candidate.relative_to(_POLICY_DIR)
+    except ValueError:
+        logger.warning(
+            "Rejected policy path outside of policy directory: %s", candidate
+        )
+        return ScanPolicy.default()
+
+    try:
+        if candidate.is_file():
+            return ScanPolicy.from_yaml(candidate)
+    except Exception:
+        # Any issues reading or parsing the policy file fall through
         # to the default policy.
-        logger.warning("Failed to resolve policy file path safely", exc_info=True)
+        logger.warning(
+            "Failed to load policy file %s safely", candidate, exc_info=True
+        )
 
     return ScanPolicy.default()
 
