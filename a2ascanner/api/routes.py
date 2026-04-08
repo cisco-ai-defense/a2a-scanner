@@ -79,6 +79,14 @@ def _resolve_policy(policy_name: Optional[str]) -> ScanPolicy:
         logger.warning("Invalid non-string policy name %r", policy_name)
         return ScanPolicy.default()
 
+    # Basic validation: reject absolute paths or any path separators to
+    # ensure policy_name is treated as a simple file name/key rather than a path.
+    if os.path.isabs(policy_name) or os.sep in policy_name or (
+        os.altsep is not None and os.altsep in policy_name
+    ):
+        logger.warning("Rejected invalid policy name %r", policy_name)
+        return ScanPolicy.default()
+
     # First, try resolving the policy as a named preset.
     try:
         return ScanPolicy.from_preset(policy_name)
