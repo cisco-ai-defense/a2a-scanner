@@ -26,6 +26,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
+import os
 
 from a2ascanner.core.scanner import Scanner
 from a2ascanner.core.analyzer_factory import build_core_analyzers
@@ -50,6 +51,11 @@ router = APIRouter()
 # API-only fields stripped when the request body is a raw agent card JSON object
 _SCAN_REQUEST_META_FIELDS = frozenset({"analyzers", "policy"})
 
+# Directory containing allowed policy YAML files for file-based policies.
+# Paths provided via the API are resolved relative to this directory and
+# must not escape it.
+_POLICY_DIR = Path("policies").resolve()
+
 
 def _resolve_policy(policy_name: Optional[str]) -> ScanPolicy:
     if not policy_name:
@@ -57,12 +63,23 @@ def _resolve_policy(policy_name: Optional[str]) -> ScanPolicy:
     try:
         return ScanPolicy.from_preset(policy_name)
     except ValueError:
+        # Fall back to treating the policy name as a file within the
+        # configured policy directory, with path traversal protection.
         pass
-    from pathlib import Path as _P
 
-    p = _P(policy_name)
-    if p.is_file():
-        return ScanPolicy.from_yaml(p)
+    # Treat the policy name as a relative path under _POLICY_DIR and
+    # ensure the resulting path cannot escape that directory.
+    candidate = (_POLICY_DIR / policy_name).resolve()
+    try:
+        # Ensure candidate is within the policy directory
+        if _POLICY_DIR == candidate or _POLICY_DIR in candidate.parents:
+            if candidate.is_file():
+                return ScanPolicy.from_yaml(candidate)
+    except Exception:
+        # Any issues resolving or validating the path fall through
+        # to the default policy.
+        logger.warning("Failed to resolve policy file path safely", exc_info=True)
+
     return ScanPolicy.default()
 
 
