@@ -108,6 +108,15 @@ def _resolve_policy(policy_name: Optional[str]) -> ScanPolicy:
     # ensure the resulting path cannot escape that directory.
     try:
         candidate = (_POLICY_DIR / policy_name).resolve()
+        # Enforce that the resolved candidate remains within the allowed policy directory.
+        if candidate != _POLICY_DIR and _POLICY_DIR not in candidate.parents:
+            logger.warning(
+                "Rejected policy path %r: resolved path %s is outside of %s",
+                policy_name,
+                candidate,
+                _POLICY_DIR,
+            )
+            return ScanPolicy.default()
     except Exception:
         logger.warning("Failed to resolve policy path %r", policy_name, exc_info=True)
         return ScanPolicy.default()
