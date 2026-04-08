@@ -142,8 +142,24 @@ class ScanPolicy:
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> ScanPolicy:
-        """Load policy from a YAML file, merged on top of defaults."""
+        """Load policy from a YAML file, merged on top of defaults.
+
+        This method is sometimes called with paths that may be influenced by
+        user input (for example via API policy selection). To avoid unsafe
+        filesystem access when it is used directly, we defensively reject
+        obviously dangerous paths here. Callers that need more advanced
+        policies (such as directory-based allowlists) should perform those
+        checks before calling this method.
+        """
         path = Path(path)
+
+        # Basic hardening: reject absolute paths, parent-directory traversal,
+        # or embedded null bytes, which are not expected for policy files and
+        # could be used to target unexpected locations.
+        if path.is_absolute() or ".." in path.parts or "\x00" in str(path):
+            logger.warning("Rejected unsafe policy path %r", str(path))
+            return cls.default()
+
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         return cls._from_dict(data)
