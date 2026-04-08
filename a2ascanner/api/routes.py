@@ -74,6 +74,10 @@ def _resolve_policy(policy_name: Optional[str]) -> ScanPolicy:
         policy_name = policy_name.strip()
         if not policy_name:
             return ScanPolicy.default()
+    else:
+        # Reject non-string values for policy names.
+        logger.warning("Invalid non-string policy name %r", policy_name)
+        return ScanPolicy.default()
 
     # First, try resolving the policy as a named preset.
     try:
@@ -82,6 +86,23 @@ def _resolve_policy(policy_name: Optional[str]) -> ScanPolicy:
         # Fall back to treating the policy name as a file within the
         # configured policy directory, with path traversal protection.
         pass
+
+    # For file-based policies, enforce that the user cannot supply an
+    # absolute path and only YAML files under _POLICY_DIR are allowed.
+    # This defends against directory traversal and access to arbitrary files.
+    if os.path.isabs(policy_name):
+        logger.warning("Rejected absolute policy path %r", policy_name)
+        return ScanPolicy.default()
+
+    # Avoid obviously dangerous or nonsensical names (null bytes, only separators).
+    if "\x00" in policy_name or all(ch in (os.sep, os.altsep or "") for ch in policy_name):
+        logger.warning("Rejected malformed policy path %r", policy_name)
+        return ScanPolicy.default()
+
+    # Optionally, restrict to YAML/YML extensions to narrow what can be loaded.
+    if not policy_name.lower().endswith((".yaml", ".yml")):
+        logger.warning("Rejected non-YAML policy path %r", policy_name)
+        return ScanPolicy.default()
 
     # Treat the policy name as a relative path under _POLICY_DIR and
     # ensure the resulting path cannot escape that directory.
