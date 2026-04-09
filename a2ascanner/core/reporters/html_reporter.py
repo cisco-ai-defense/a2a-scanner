@@ -26,7 +26,7 @@ from typing import Any, Dict, List
 from ..models import ScanResult
 
 
-_SEVERITY_ORDER = ("HIGH", "CRITICAL", "MEDIUM", "LOW", "UNKNOWN", "SAFE")
+_SEVERITY_ORDER = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN", "SAFE")
 
 _CSS = """
 :root {

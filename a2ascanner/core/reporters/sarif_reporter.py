@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List
 from urllib.parse import quote
 
+import a2ascanner
+
 from ..models import ScanResult
 
 
@@ -122,7 +124,7 @@ class SARIFReporter:
                         "driver": {
                             "name": "a2a-scanner",
                             "informationUri": "https://github.com/cisco-ai-defense/a2a-scanner",
-                            "version": "1.0.0",
+                            "version": a2ascanner.__version__,
                             "rules": rule_list,
                         }
                     },

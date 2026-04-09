@@ -125,13 +125,13 @@ class TableReporter:
         table.add_column("Severity", style="bold", width=8)
         table.add_column("Summary", width=26)
 
-        severity_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+        severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
         sorted_findings = sorted(
-            findings, key=lambda t: severity_order.get(t[1].severity, 3)
+            findings, key=lambda t: severity_order.get(t[1].severity, 4)
         )
 
         for idx, finding in sorted_findings:
-            if finding.severity == "HIGH":
+            if finding.severity in ("CRITICAL", "HIGH"):
                 severity_style = "bold red"
             elif finding.severity == "MEDIUM":
                 severity_style = "bold yellow"
@@ -244,13 +244,13 @@ class TableReporter:
         table.add_column("Severity", style="bold", width=8)
         table.add_column("Description", width=45)
 
-        severity_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+        severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
         sorted_findings = sorted(
-            findings, key=lambda t: severity_order.get(t[1].severity, 3)
+            findings, key=lambda t: severity_order.get(t[1].severity, 4)
         )
 
         for idx, finding in sorted_findings:
-            if finding.severity == "HIGH":
+            if finding.severity in ("CRITICAL", "HIGH"):
                 severity_style = "bold red"
             elif finding.severity == "MEDIUM":
                 severity_style = "bold yellow"

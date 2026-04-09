@@ -33,6 +33,7 @@ _TARGET_CHOICES = ("file", "directory", "endpoint", "registry")
 # Registry keys returned by :meth:`Scanner.get_available_analyzers` / ``--analyzers``.
 _KNOWN_ANALYZERS = frozenset(
     (
+        "yara",
         "static_analyzer",
         "spec",
         "endpoint",
@@ -82,7 +83,7 @@ def run_wizard() -> int:
 
     console.print(
         "\n[dim]Analyzers: leave empty to run all enabled by policy; "
-        "or comma-separated registry keys: static_analyzer, spec, endpoint, llm, heuristic.[/dim]"
+        "or comma-separated registry keys: yara, spec, endpoint, llm, heuristic.[/dim]"
     )
     analyzers_raw = Prompt.ask("Restrict analyzers (optional)", default="").strip()
     if analyzers_raw:

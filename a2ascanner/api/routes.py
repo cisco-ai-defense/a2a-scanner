@@ -23,25 +23,25 @@ routes for scanning agent cards, health checks, and result retrieval.
 import json
 import tempfile
 from pathlib import Path
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
-import os
 
-from a2ascanner.core.scanner import Scanner
+from a2ascanner.config.config import Config
 from a2ascanner.core.analyzer_factory import build_core_analyzers
 from a2ascanner.core.scan_policy import ScanPolicy
-from a2ascanner.config.config import Config
-from a2ascanner.utils.http_client import fetch_agent_card
+from a2ascanner.core.scanner import Scanner
 from a2ascanner.exceptions import (
+    A2AScannerError,
+    AuthenticationError,
     NetworkError,
+    SSRFError,
     TimeoutError,
     ValidationError,
-    SSRFError,
-    AuthenticationError,
-    A2AScannerError,
 )
-from a2ascanner.utils.logging_config import set_correlation_id, get_logger
+from a2ascanner.utils.http_client import fetch_agent_card
+from a2ascanner.utils.logging_config import get_logger, set_correlation_id
 
 logger = get_logger(__name__)
 
@@ -51,121 +51,42 @@ router = APIRouter()
 # API-only fields stripped when the request body is a raw agent card JSON object
 _SCAN_REQUEST_META_FIELDS = frozenset({"analyzers", "policy"})
 
-# Directory containing allowed policy YAML files for file-based policies.
-# Paths provided via the API are resolved relative to this directory and
-# must not escape it.
-_POLICY_DIR = Path("policies").resolve()
 
+def _resolve_policy(policy_name: str | None) -> ScanPolicy:
+    """Resolve a policy preset name to a *ScanPolicy*.
 
-def _resolve_policy(policy_name: Optional[str]) -> ScanPolicy:
-    """Resolve a policy name to a ScanPolicy, with safe handling of file-based policies.
-
-    The policy name may refer to a built-in preset or to a YAML file under
-    the configured _POLICY_DIR directory. When resolving file-based policies,
-    this function enforces that the resulting path is strictly contained
-    within _POLICY_DIR to prevent directory traversal or access to arbitrary
-    files on the filesystem.
+    Only built-in presets (``strict``, ``balanced``, ``permissive``) are
+    accepted.  Arbitrary file paths are **not** supported via the API to
+    prevent path-injection attacks.  Use the CLI for file-based policies.
     """
     if not policy_name:
         return ScanPolicy.default()
 
-    # Normalize simple whitespace-only or empty strings to default behavior.
-    if isinstance(policy_name, str):
-        policy_name = policy_name.strip()
-        if not policy_name:
-            return ScanPolicy.default()
-    else:
-        # Reject non-string values for policy names.
-        logger.warning("Invalid non-string policy name %r", policy_name)
+    name = policy_name.strip() if isinstance(policy_name, str) else ""
+    if not name:
         return ScanPolicy.default()
 
-    # Basic validation: reject absolute paths or any path separators to
-    # ensure policy_name is treated as a simple file name/key rather than a path.
-    if os.path.isabs(policy_name) or os.sep in policy_name or (
-        os.altsep is not None and os.altsep in policy_name
-    ):
-        logger.warning("Rejected invalid policy name %r", policy_name)
-        return ScanPolicy.default()
-
-    # First, try resolving the policy as a named preset.
     try:
-        return ScanPolicy.from_preset(policy_name)
+        return ScanPolicy.from_preset(name)
     except ValueError:
-        # Fall back to treating the policy name as a file within the
-        # configured policy directory, with path traversal protection.
-        pass
-
-    # For file-based policies, enforce that the user cannot supply an
-    # absolute path and only YAML files under _POLICY_DIR are allowed.
-    # This defends against directory traversal and access to arbitrary files.
-    if os.path.isabs(policy_name):
-        logger.warning("Rejected absolute policy path %r", policy_name)
+        logger.warning("Unknown policy preset %r; falling back to default", name)
         return ScanPolicy.default()
-
-    # Avoid obviously dangerous or nonsensical names (null bytes, only separators).
-    if "\x00" in policy_name or all(ch in (os.sep, os.altsep or "") for ch in policy_name):
-        logger.warning("Rejected malformed policy path %r", policy_name)
-        return ScanPolicy.default()
-
-    # Optionally, restrict to YAML/YML extensions to narrow what can be loaded.
-    if not policy_name.lower().endswith((".yaml", ".yml")):
-        logger.warning("Rejected non-YAML policy path %r", policy_name)
-        return ScanPolicy.default()
-
-    # Treat the policy name as a relative path under _POLICY_DIR and
-    # ensure the resulting path cannot escape that directory.
-    try:
-        candidate = (_POLICY_DIR / policy_name).resolve()
-        # Enforce that the resolved candidate remains within the allowed policy directory.
-        if candidate != _POLICY_DIR and _POLICY_DIR not in candidate.parents:
-            logger.warning(
-                "Rejected policy path %r: resolved path %s is outside of %s",
-                policy_name,
-                candidate,
-                _POLICY_DIR,
-            )
-            return ScanPolicy.default()
-    except Exception:
-        logger.warning("Failed to resolve policy path %r", policy_name, exc_info=True)
-        return ScanPolicy.default()
-
-    try:
-        # Ensure candidate is within the policy directory. Using relative_to
-        # provides a clear containment check and prevents directory traversal.
-        candidate.relative_to(_POLICY_DIR)
-    except ValueError:
-        logger.warning(
-            "Rejected policy path outside of policy directory: %s", candidate
-        )
-        return ScanPolicy.default()
-
-    try:
-        if candidate.is_file():
-            return ScanPolicy.from_yaml(candidate)
-    except Exception:
-        # Any issues reading or parsing the policy file fall through
-        # to the default policy.
-        logger.warning(
-            "Failed to load policy file %s safely", candidate, exc_info=True
-        )
-
-    return ScanPolicy.default()
 
 
 # Request models
 class AgentCardScanRequest(BaseModel):
     """Request model for agent card scan."""
 
-    agent_card_url: Optional[str] = Field(None, description="URL to agent card")
-    agent_card_json: Optional[str] = Field(None, description="Agent card JSON string")
-    agent_card_data: Optional[Dict[str, Any]] = Field(
+    agent_card_url: str | None = Field(None, description="URL to agent card")
+    agent_card_json: str | None = Field(None, description="Agent card JSON string")
+    agent_card_data: dict[str, Any] | None = Field(
         None, description="Agent card as dict"
     )
-    analyzers: Optional[List[str]] = Field(
+    analyzers: list[str] | None = Field(
         None,
         description="Analyzers to use; omit for all applicable analyzers (except endpoint)",
     )
-    policy: Optional[str] = Field(
+    policy: str | None = Field(
         None,
         description="Policy preset: strict, balanced, permissive; omit for default",
     )
@@ -179,11 +100,11 @@ class SourceCodeScanRequest(BaseModel):
     """Request model for source code scan."""
 
     directory: str = Field(..., description="Path to source code directory")
-    analyzers: Optional[List[str]] = Field(
+    analyzers: list[str] | None = Field(
         None,
         description="Analyzers to use; omit for default selection per file type",
     )
-    policy: Optional[str] = Field(
+    policy: str | None = Field(
         None,
         description="Policy preset: strict, balanced, permissive; omit for default",
     )
@@ -193,7 +114,7 @@ class EndpointScanRequest(BaseModel):
     """Request model for endpoint scan."""
 
     endpoint_url: str = Field(..., description="Endpoint URL to scan")
-    policy: Optional[str] = Field(
+    policy: str | None = Field(
         None,
         description="Policy preset: strict, balanced, permissive; omit for default",
     )
@@ -203,13 +124,13 @@ class FullScanRequest(BaseModel):
     """Request model for full scan."""
 
     directory: str = Field(..., description="Path to source code directory")
-    agent_card_url: Optional[str] = Field(None, description="URL to agent card")
-    endpoint_url: Optional[str] = Field(None, description="Endpoint URL to test")
-    analyzers: Optional[List[str]] = Field(
+    agent_card_url: str | None = Field(None, description="URL to agent card")
+    endpoint_url: str | None = Field(None, description="Endpoint URL to test")
+    analyzers: list[str] | None = Field(
         None,
         description="Analyzers to use; omit for default selection per file type",
     )
-    policy: Optional[str] = Field(
+    policy: str | None = Field(
         None,
         description="Policy preset: strict, balanced, permissive; omit for default",
     )
@@ -219,11 +140,11 @@ class FileContentScanRequest(BaseModel):
     """Request model for scanning raw text content as a file."""
 
     content: str = Field(..., description="Raw text content to scan")
-    analyzers: Optional[List[str]] = Field(
+    analyzers: list[str] | None = Field(
         None,
         description="Analyzers to use; omit for default selection per content type",
     )
-    policy: Optional[str] = Field(
+    policy: str | None = Field(
         None,
         description="Policy preset: strict, balanced, permissive; omit for default",
     )
@@ -235,7 +156,7 @@ class ScanResponse(BaseModel):
 
     success: bool
     message: str
-    result: Optional[Dict[str, Any]] = None
+    result: dict[str, Any] | None = None
 
 
 # Routes
