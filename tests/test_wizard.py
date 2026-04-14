@@ -39,7 +39,7 @@ class TestWizardImports:
         from a2ascanner.cli import wizard
         source = inspect.getsource(wizard.run_wizard)
         assert "build_parser" in source
-        assert "_dispatch" in source
+        assert "dispatch" in source
 
 
 class TestInteractiveCLI:

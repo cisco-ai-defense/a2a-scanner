@@ -211,3 +211,9 @@ __marimo__/
 # IDE / editor directories
 .cursor/
 .windsurf/
+
+# hatch-vcs generated version file
+a2ascanner/_version.py
+
+# Test artifacts
+tests/test_data/

@@ -25,7 +25,7 @@ from rich.console import Console
 from rich.prompt import Confirm, Prompt
 
 from ..data import list_available_packs
-from .cli import _dispatch, build_parser, parse_analyzer_list
+from .cli import build_parser, dispatch, parse_analyzer_list
 
 _FORMAT_CHOICES = ("summary", "json", "markdown", "table", "sarif", "html")
 _TARGET_CHOICES = ("file", "directory", "endpoint", "registry")
@@ -152,4 +152,4 @@ def run_wizard() -> int:
 
     console.print(f"\n[green]Running:[/green] a2a-scanner {' '.join(shlex.quote(c) for c in cmd)}\n")
 
-    return _dispatch(args)
+    return dispatch(args)

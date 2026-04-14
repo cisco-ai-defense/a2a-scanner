@@ -29,7 +29,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from a2ascanner.config.config import Config
-from a2ascanner.core.analyzer_factory import build_core_analyzers
+from a2ascanner.core.analyzer_factory import build_analyzers
 from a2ascanner.core.scan_policy import ScanPolicy
 from a2ascanner.core.scanner import Scanner
 from a2ascanner.exceptions import (
@@ -48,8 +48,20 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
+_SCANNABLE_EXTENSIONS = frozenset({
+    ".py", ".json", ".yaml", ".yml", ".js", ".jsx",
+    ".ts", ".tsx", ".mjs", ".html", ".htm", ".xml",
+})
+
 # API-only fields stripped when the request body is a raw agent card JSON object
 _SCAN_REQUEST_META_FIELDS = frozenset({"analyzers", "policy"})
+
+
+def _iter_scannable_files(directory: Path):
+    """Yield files under *directory* whose extension is in ``_SCANNABLE_EXTENSIONS``."""
+    for file_path in directory.rglob("*"):
+        if file_path.is_file() and file_path.suffix.lower() in _SCANNABLE_EXTENSIONS:
+            yield file_path
 
 
 def _resolve_policy(policy_name: str | None) -> ScanPolicy:
@@ -173,7 +185,7 @@ async def scan_agent_card(request: AgentCardScanRequest):
         config = Config()
         policy = _resolve_policy(request.policy)
         scanner = Scanner(
-            config, policy=policy, analyzers=build_core_analyzers(policy)
+            config, policy=policy, analyzers=build_analyzers(policy, config=config)
         )
         analyzers_list = request.analyzers if request.analyzers else None
 
@@ -351,7 +363,7 @@ async def scan_file_content(request: FileContentScanRequest):
         config = Config()
         policy = _resolve_policy(request.policy)
         scanner = Scanner(
-            config, policy=policy, analyzers=build_core_analyzers(policy)
+            config, policy=policy, analyzers=build_analyzers(policy, config=config)
         )
         analyzers_list = request.analyzers if request.analyzers else None
 
@@ -394,7 +406,7 @@ async def scan_source_code(request: SourceCodeScanRequest):
         config = Config()
         policy = _resolve_policy(request.policy)
         scanner = Scanner(
-            config, policy=policy, analyzers=build_core_analyzers(policy)
+            config, policy=policy, analyzers=build_analyzers(policy, config=config)
         )
         analyzers_list = request.analyzers if request.analyzers else None
 
@@ -405,10 +417,8 @@ async def scan_source_code(request: SourceCodeScanRequest):
                 status_code=404, detail=f"Directory not found: {request.directory}"
             )
 
-        # For now, scan individual files and aggregate results
-        # In a full implementation, you'd want Scanner.scan_directory()
         all_findings = []
-        for file_path in directory.rglob("*.py"):
+        for file_path in _iter_scannable_files(directory):
             result = await scanner.scan_file(str(file_path), analyzers=analyzers_list)
             all_findings.extend(result.findings)
 
@@ -443,7 +453,7 @@ async def scan_endpoint(request: EndpointScanRequest):
         config = Config()
         policy = _resolve_policy(request.policy)
         scanner = Scanner(
-            config, policy=policy, analyzers=build_core_analyzers(policy)
+            config, policy=policy, analyzers=build_analyzers(policy, config=config)
         )
 
         logger.info(f"Starting endpoint scan: {request.endpoint_url}")
@@ -553,7 +563,7 @@ async def full_scan(request: FullScanRequest):
         config = Config()
         policy = _resolve_policy(request.policy)
         scanner = Scanner(
-            config, policy=policy, analyzers=build_core_analyzers(policy)
+            config, policy=policy, analyzers=build_analyzers(policy, config=config)
         )
         analyzers_list = request.analyzers if request.analyzers else None
         results = {}
@@ -567,7 +577,7 @@ async def full_scan(request: FullScanRequest):
         directory = Path(request.directory)
         if directory.exists():
             all_findings = []
-            for file_path in directory.rglob("*.py"):
+            for file_path in _iter_scannable_files(directory):
                 result = await scanner.scan_file(
                     str(file_path), analyzers=analyzers_list
                 )

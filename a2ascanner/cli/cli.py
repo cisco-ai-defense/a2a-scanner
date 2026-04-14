@@ -32,7 +32,6 @@ from rich.markdown import Markdown
 
 from ..config.config import Config
 from ..core.analyzer_factory import build_analyzers
-from ..core.analyzers.heuristic_analyzer import HeuristicAnalyzer
 from ..core.models import ScanResult
 from ..core.reporters import (
     HTMLReporter,
@@ -132,12 +131,6 @@ def _build_analyzers(
         use_llm=use_llm,
         use_endpoint=bool(getattr(args, "use_endpoint_internal", False)),
     )
-
-    if not any(getattr(a, "name", "") == "Heuristic" for a in analyzers):
-        try:
-            analyzers.append(HeuristicAnalyzer())
-        except Exception as e:
-            logger.warning("Heuristic analyzer not available: %s", e)
 
     return analyzers
 
@@ -737,7 +730,8 @@ def build_parser() -> argparse.ArgumentParser:
     return _build_parser()
 
 
-def _dispatch(args: argparse.Namespace) -> int:
+def dispatch(args: argparse.Namespace) -> int:
+    """Route parsed CLI arguments to the appropriate subcommand handler."""
     cmd = args.command
     if cmd == "scan":
         return scan_command(args)
@@ -778,7 +772,7 @@ def main() -> None:
         parser.print_help()
         raise SystemExit(2)
 
-    raise SystemExit(_dispatch(args))
+    raise SystemExit(dispatch(args))
 
 
 if __name__ == "__main__":

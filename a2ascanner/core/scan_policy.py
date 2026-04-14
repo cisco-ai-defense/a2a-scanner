@@ -224,8 +224,21 @@ class ScanPolicy:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
     def is_rule_enabled(self, rule_id: str) -> bool:
-        """Check if a rule is enabled (not in disabled_rules)."""
-        return rule_id not in self.disabled_rules
+        """Check if a rule is enabled (not in disabled_rules).
+
+        Supports both exact rule IDs and glob-style patterns (``*``)
+        compiled via :func:`_safe_compile`.
+        """
+        for entry in self.disabled_rules:
+            if entry == rule_id:
+                return False
+            if "*" in entry or "?" in entry:
+                pat = _safe_compile(
+                    "^" + re.escape(entry).replace(r"\*", ".*").replace(r"\?", ".") + "$"
+                )
+                if pat is not None and pat.fullmatch(rule_id):
+                    return False
+        return True
 
     def get_effective_severity(self, rule_id: str, default_severity: str) -> str:
         """Get the effective severity for a rule, considering overrides."""
