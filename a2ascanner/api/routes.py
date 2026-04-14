@@ -29,7 +29,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from a2ascanner.config.config import Config
-from a2ascanner.core.analyzer_factory import build_analyzers
+from a2ascanner.core.analyzer_factory import build_analyzers, build_core_analyzers
 from a2ascanner.core.scan_policy import ScanPolicy
 from a2ascanner.core.scanner import Scanner
 from a2ascanner.exceptions import (
