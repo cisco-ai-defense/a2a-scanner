@@ -1,0 +1,23 @@
+policy_name: strict
+policy_version: "1.0"
+description: "Maximum coverage A2A scan policy — all analyzers and LLM-assisted review enabled"
+
+disabled_rules: []
+
+severity_overrides: {}
+
+analyzers:
+  static: true
+  spec: true
+  endpoint: true
+  llm: true
+
+llm_analysis:
+  enabled: true
+  model: null
+  max_output_tokens: 8192
+
+finding_output:
+  dedupe_exact_findings: true
+  dedupe_same_issue_per_location: true
+  attach_policy_fingerprint: true

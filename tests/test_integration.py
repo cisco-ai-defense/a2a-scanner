@@ -323,18 +323,16 @@ class TestErrorRecovery:
         try:
             with open(invalid_file) as f:
                 agent_card = json.load(f)
-            result = await scanner.scan_agent_card(agent_card)
+            await scanner.scan_agent_card(agent_card)
         except json.JSONDecodeError:
-            # Expected to fail at JSON parsing
             pass
     
     @pytest.mark.asyncio
     async def test_missing_file_recovery(self, scanner):
         """Test recovery from missing file."""
         try:
-            result = await scanner.scan_file("/nonexistent/file.py")
+            await scanner.scan_file("/nonexistent/file.py")
         except FileNotFoundError:
-            # Expected behavior
             pass
 
 

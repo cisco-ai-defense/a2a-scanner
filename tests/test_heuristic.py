@@ -537,7 +537,7 @@ class TestHeuristicIntegration:
         # Should detect multiple different threats
         assert len(findings) > 1
         threat_names = set(f.threat_name for f in findings)
-        assert len(categories) > 1
+        assert len(threat_names) > 1
     
     @pytest.mark.asyncio
     async def test_malicious_agent_card_full_analysis(self, heuristic):

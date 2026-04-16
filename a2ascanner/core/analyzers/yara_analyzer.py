@@ -22,11 +22,13 @@ threat patterns including agent card spoofing, tool poisoning, message injection
 and network security issues.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
-    import yara
+    import yara_x
 
     YARA_AVAILABLE = True
 except ImportError:
@@ -36,7 +38,10 @@ from .base import BaseAnalyzer, SecurityFinding
 
 
 class YaraAnalyzer(BaseAnalyzer):
-    """YARA-based analyzer for detecting A2A threats using pattern matching."""
+    """YARA-based analyzer for detecting A2A threats using pattern matching.
+
+    Uses the ``yara-x`` library for rule compilation and scanning.
+    """
 
     def __init__(self, rules_dir: Optional[str] = None):
         """Initialize the YARA analyzer.
@@ -49,41 +54,26 @@ class YaraAnalyzer(BaseAnalyzer):
 
         if not YARA_AVAILABLE:
             raise ImportError(
-                "yara-python is not installed. "
-                "Install it with: pip install yara-python"
+                "yara-x is not installed. Install it with: pip install yara-x"
             )
 
-        # Determine rules directory
         if rules_dir:
             self.rules_dir = Path(rules_dir)
         else:
-            # Use default rules from package data
             package_dir = Path(__file__).parent.parent.parent
-            self.rules_dir = package_dir / "data" / "yara_rules"
+            self.rules_dir = package_dir / "data" / "packs" / "core" / "yara"
 
         if not self.rules_dir.exists():
             raise FileNotFoundError(f"YARA rules directory not found: {self.rules_dir}")
 
-        # Compile all YARA rules
         self.rules = self._compile_rules()
         self.logger.info(f"Loaded YARA rules from: {self.rules_dir}")
 
-    def _compile_rules(self) -> yara.Rules:
-        """Compile all YARA rules from the rules directory.
-
-        Returns:
-            Compiled YARA rules object.
-        """
-        rule_files = {}
-
-        # Find all .yara and .yar files
-        for rule_file in self.rules_dir.glob("*.yara"):
-            namespace = rule_file.stem
-            rule_files[namespace] = str(rule_file)
-
-        for rule_file in self.rules_dir.glob("*.yar"):
-            namespace = rule_file.stem
-            rule_files[namespace] = str(rule_file)
+    def _compile_rules(self) -> yara_x.Rules:
+        """Compile all YARA rules from the rules directory."""
+        rule_files: list[Path] = []
+        for ext in ("*.yara", "*.yar"):
+            rule_files.extend(self.rules_dir.glob(ext))
 
         if not rule_files:
             raise ValueError(
@@ -93,11 +83,12 @@ class YaraAnalyzer(BaseAnalyzer):
 
         self.logger.debug(f"Compiling {len(rule_files)} YARA rule files")
 
-        try:
-            return yara.compile(filepaths=rule_files)
-        except yara.SyntaxError as e:
-            self.logger.error(f"YARA syntax error: {e}")
-            raise
+        compiler = yara_x.Compiler()
+        for rule_file in sorted(rule_files):
+            source = rule_file.read_text(encoding="utf-8")
+            compiler.add_source(source)
+
+        return compiler.build()
 
     async def analyze(
         self, content: str, context: Optional[Dict[str, Any]] = None
@@ -115,52 +106,45 @@ class YaraAnalyzer(BaseAnalyzer):
         findings = []
 
         try:
-            # Run YARA rules against content
-            matches = self.rules.match(data=content)
+            data = content.encode("utf-8") if isinstance(content, str) else content
+            results = self.rules.scan(data)
 
-            for match in matches:
-                # Extract metadata from rule
-                meta = match.meta
+            for matching_rule in results.matching_rules:
+                meta = {k: v for k, v in matching_rule.metadata}
 
                 severity = meta.get("severity", "UNKNOWN")
-                threat_name = meta.get("threat_name", match.rule)
-                description = meta.get("description", f"YARA rule {match.rule} matched")
+                threat_name = meta.get("threat_name", matching_rule.identifier)
+                description = meta.get(
+                    "description",
+                    f"YARA rule {matching_rule.identifier} matched",
+                )
 
-                # Build details with match information
-                details = {
-                    "rule_name": match.rule,
-                    "namespace": match.namespace,
-                    "tags": list(match.tags),
+                details: Dict[str, Any] = {
+                    "rule_name": matching_rule.identifier,
                     "matched_strings": [],
                 }
 
-                # Add matched string details
-                for string_match in match.strings:
-                    string_info = {
-                        "identifier": string_match.identifier,
-                        "instances": len(string_match.instances),
-                    }
-                    # Add sample of matched content (first 100 chars)
-                    if string_match.instances:
-                        sample = string_match.instances[0].matched_data
-                        if isinstance(sample, bytes):
-                            try:
-                                sample = sample.decode("utf-8", errors="ignore")
-                            except (UnicodeDecodeError, AttributeError):
-                                sample = str(sample)
-                        string_info["sample"] = sample[:100]
+                for pattern in matching_rule.patterns:
+                    for match in pattern.matches:
+                        sample = data[match.offset : match.offset + match.length]
+                        try:
+                            sample_str = sample.decode("utf-8", errors="ignore")[:100]
+                        except Exception:
+                            sample_str = str(sample)[:100]
 
-                        # Try to find which JSON field contains this match
-                        field_location = self._find_field_location(content, sample)
+                        string_info: Dict[str, Any] = {
+                            "offset": match.offset,
+                            "length": match.length,
+                            "sample": sample_str,
+                        }
+                        field_location = self._find_field_location(content, sample_str)
                         if field_location:
                             string_info["field_location"] = field_location
-                    details["matched_strings"].append(string_info)
+                        details["matched_strings"].append(string_info)
 
-                # Add context information
                 if context:
                     details["context"] = context
 
-                # Create security finding
                 finding = self.create_security_finding(
                     severity=severity,
                     summary=description,
@@ -170,7 +154,7 @@ class YaraAnalyzer(BaseAnalyzer):
                 findings.append(finding)
 
             self.logger.debug(
-                f"YARA analysis complete: {len(matches)} rules matched, "
+                f"YARA analysis complete: {len(results.matching_rules)} rules matched, "
                 f"{len(findings)} findings generated"
             )
 

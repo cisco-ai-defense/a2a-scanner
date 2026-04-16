@@ -607,6 +607,8 @@ class ThreatMapping:
             "endpoint": cls.ENDPOINT_THREATS,
             "spec": cls.SPEC_THREATS,
             "speccompliance": cls.SPEC_THREATS,
+            "static_analyzer": cls.YARA_THREATS,
+            "static": cls.YARA_THREATS,
         }
 
         analyzer_lower = analyzer.lower()

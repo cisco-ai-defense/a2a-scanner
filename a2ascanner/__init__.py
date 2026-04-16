@@ -23,13 +23,18 @@ LLM-powered analysis, and endpoint security testing.
 """
 
 from .core.analyzers.base import BaseAnalyzer, SecurityFinding
+from .core.scan_policy import ScanPolicy
 from .core.scanner import Scanner
 from .config.config import Config
 
-__version__ = "1.0.0"
+try:
+    from ._version import __version__
+except ImportError:
+    __version__ = "0.0.0"
 
 __all__ = [
     "Scanner",
+    "ScanPolicy",
     "Config",
     "BaseAnalyzer",
     "SecurityFinding",

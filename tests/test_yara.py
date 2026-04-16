@@ -491,7 +491,7 @@ class TestYaraPerformance:
         content = "Normal content " * 1000
         
         start = time.time()
-        findings = await yara_analyzer.analyze(content)
+        await yara_analyzer.analyze(content)
         duration = time.time() - start
         
         # Should complete quickly (< 5 seconds for 1000 words)

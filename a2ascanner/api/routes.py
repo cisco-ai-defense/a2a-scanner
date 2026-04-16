@@ -21,41 +21,86 @@ routes for scanning agent cards, health checks, and result retrieval.
 """
 
 import json
+import tempfile
 from pathlib import Path
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
 
-from a2ascanner.core.scanner import Scanner
 from a2ascanner.config.config import Config
-from a2ascanner.utils.http_client import fetch_agent_card
+from a2ascanner.core.analyzer_factory import build_analyzers, build_core_analyzers
+from a2ascanner.core.scan_policy import ScanPolicy
+from a2ascanner.core.scanner import Scanner
 from a2ascanner.exceptions import (
+    A2AScannerError,
+    AuthenticationError,
     NetworkError,
+    SSRFError,
     TimeoutError,
     ValidationError,
-    SSRFError,
-    AuthenticationError,
-    A2AScannerError,
 )
-from a2ascanner.utils.logging_config import set_correlation_id, get_logger
+from a2ascanner.utils.http_client import fetch_agent_card
+from a2ascanner.utils.logging_config import get_logger, set_correlation_id
 
 logger = get_logger(__name__)
 
 
 router = APIRouter()
 
+_SCANNABLE_EXTENSIONS = frozenset({
+    ".py", ".json", ".yaml", ".yml", ".js", ".jsx",
+    ".ts", ".tsx", ".mjs", ".html", ".htm", ".xml",
+})
+
+# API-only fields stripped when the request body is a raw agent card JSON object
+_SCAN_REQUEST_META_FIELDS = frozenset({"analyzers", "policy"})
+
+
+def _iter_scannable_files(directory: Path):
+    """Yield files under *directory* whose extension is in ``_SCANNABLE_EXTENSIONS``."""
+    for file_path in directory.rglob("*"):
+        if file_path.is_file() and file_path.suffix.lower() in _SCANNABLE_EXTENSIONS:
+            yield file_path
+
+
+def _resolve_policy(policy_name: str | None) -> ScanPolicy:
+    """Resolve a policy preset name to a *ScanPolicy*.
+
+    Only built-in presets (``strict``, ``balanced``, ``permissive``) are
+    accepted.  Arbitrary file paths are **not** supported via the API to
+    prevent path-injection attacks.  Use the CLI for file-based policies.
+    """
+    if not policy_name:
+        return ScanPolicy.default()
+
+    name = policy_name.strip() if isinstance(policy_name, str) else ""
+    if not name:
+        return ScanPolicy.default()
+
+    try:
+        return ScanPolicy.from_preset(name)
+    except ValueError:
+        logger.warning("Unknown policy preset %r; falling back to default", name)
+        return ScanPolicy.default()
+
 
 # Request models
 class AgentCardScanRequest(BaseModel):
     """Request model for agent card scan."""
 
-    agent_card_url: Optional[str] = Field(None, description="URL to agent card")
-    agent_card_json: Optional[str] = Field(None, description="Agent card JSON string")
-    agent_card_data: Optional[Dict[str, Any]] = Field(
+    agent_card_url: str | None = Field(None, description="URL to agent card")
+    agent_card_json: str | None = Field(None, description="Agent card JSON string")
+    agent_card_data: dict[str, Any] | None = Field(
         None, description="Agent card as dict"
     )
-    analyzers: List[str] = Field(
-        default=["yara", "llm"], description="Analyzers to use"
+    analyzers: list[str] | None = Field(
+        None,
+        description="Analyzers to use; omit for all applicable analyzers (except endpoint)",
+    )
+    policy: str | None = Field(
+        None,
+        description="Policy preset: strict, balanced, permissive; omit for default",
     )
 
     # Allow the root to be the agent card itself
@@ -67,8 +112,13 @@ class SourceCodeScanRequest(BaseModel):
     """Request model for source code scan."""
 
     directory: str = Field(..., description="Path to source code directory")
-    analyzers: List[str] = Field(
-        default=["yara", "static"], description="Analyzers to use"
+    analyzers: list[str] | None = Field(
+        None,
+        description="Analyzers to use; omit for default selection per file type",
+    )
+    policy: str | None = Field(
+        None,
+        description="Policy preset: strict, balanced, permissive; omit for default",
     )
 
 
@@ -76,16 +126,39 @@ class EndpointScanRequest(BaseModel):
     """Request model for endpoint scan."""
 
     endpoint_url: str = Field(..., description="Endpoint URL to scan")
+    policy: str | None = Field(
+        None,
+        description="Policy preset: strict, balanced, permissive; omit for default",
+    )
 
 
 class FullScanRequest(BaseModel):
     """Request model for full scan."""
 
     directory: str = Field(..., description="Path to source code directory")
-    agent_card_url: Optional[str] = Field(None, description="URL to agent card")
-    endpoint_url: Optional[str] = Field(None, description="Endpoint URL to test")
-    analyzers: List[str] = Field(
-        default=["yara", "llm", "static"], description="Analyzers to use"
+    agent_card_url: str | None = Field(None, description="URL to agent card")
+    endpoint_url: str | None = Field(None, description="Endpoint URL to test")
+    analyzers: list[str] | None = Field(
+        None,
+        description="Analyzers to use; omit for default selection per file type",
+    )
+    policy: str | None = Field(
+        None,
+        description="Policy preset: strict, balanced, permissive; omit for default",
+    )
+
+
+class FileContentScanRequest(BaseModel):
+    """Request model for scanning raw text content as a file."""
+
+    content: str = Field(..., description="Raw text content to scan")
+    analyzers: list[str] | None = Field(
+        None,
+        description="Analyzers to use; omit for default selection per content type",
+    )
+    policy: str | None = Field(
+        None,
+        description="Policy preset: strict, balanced, permissive; omit for default",
     )
 
 
@@ -95,7 +168,7 @@ class ScanResponse(BaseModel):
 
     success: bool
     message: str
-    result: Optional[Dict[str, Any]] = None
+    result: dict[str, Any] | None = None
 
 
 # Routes
@@ -110,7 +183,11 @@ async def scan_agent_card(request: AgentCardScanRequest):
 
     try:
         config = Config()
-        scanner = Scanner(config)
+        policy = _resolve_policy(request.policy)
+        scanner = Scanner(
+            config, policy=policy, analyzers=build_analyzers(policy, config=config)
+        )
+        analyzers_list = request.analyzers if request.analyzers else None
 
         # Check if the request itself is the agent card (direct JSON post)
         request_dict = request.model_dump(exclude_unset=True)
@@ -121,12 +198,16 @@ async def scan_agent_card(request: AgentCardScanRequest):
             and not request.agent_card_json
             and not request.agent_card_data
         ):
-            # Remove our custom fields if they exist
+            # Remove API-only fields if they exist
             agent_card = {
-                k: v for k, v in request_dict.items() if k not in ["analyzers"]
+                k: v
+                for k, v in request_dict.items()
+                if k not in _SCAN_REQUEST_META_FIELDS
             }
             if agent_card and "name" in agent_card:  # Looks like an agent card
-                result = await scanner.scan_agent_card(agent_card)
+                result = await scanner.scan_agent_card(
+                    agent_card, analyzers=analyzers_list
+                )
             else:
                 raise HTTPException(
                     status_code=400,
@@ -149,7 +230,9 @@ async def scan_agent_card(request: AgentCardScanRequest):
                     allow_localhost=config.dev_mode,  # Allow localhost in dev mode
                     allow_private_ips=config.dev_mode,  # Allow private IPs in dev mode
                 )
-                result = await scanner.scan_agent_card(agent_card)
+                result = await scanner.scan_agent_card(
+                    agent_card, analyzers=analyzers_list
+                )
                 logger.info("Successfully scanned agent card from URL")
             except SSRFError as e:
                 logger.error(f"SSRF protection blocked URL: {e.message}")
@@ -218,9 +301,13 @@ async def scan_agent_card(request: AgentCardScanRequest):
                 )
         elif request.agent_card_json:
             agent_card = json.loads(request.agent_card_json)
-            result = await scanner.scan_agent_card(agent_card)
+            result = await scanner.scan_agent_card(
+                agent_card, analyzers=analyzers_list
+            )
         else:  # agent_card_data
-            result = await scanner.scan_agent_card(request.agent_card_data)
+            result = await scanner.scan_agent_card(
+                request.agent_card_data, analyzers=analyzers_list
+            )
 
         return ScanResponse(
             success=True, message="Agent card scan completed", result=result.to_dict()
@@ -268,6 +355,47 @@ async def scan_agent_card(request: AgentCardScanRequest):
         )
 
 
+@router.post("/scan/file", response_model=ScanResponse)
+async def scan_file_content(request: FileContentScanRequest):
+    """Scan raw text content using the same rules as scanning a file on disk."""
+    set_correlation_id()
+    try:
+        config = Config()
+        policy = _resolve_policy(request.policy)
+        scanner = Scanner(
+            config, policy=policy, analyzers=build_analyzers(policy, config=config)
+        )
+        analyzers_list = request.analyzers if request.analyzers else None
+
+        suffix = ".txt"
+        try:
+            json.loads(request.content)
+            suffix = ".json"
+        except json.JSONDecodeError:
+            pass
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            suffix=suffix,
+            delete=False,
+        ) as tmp:
+            tmp.write(request.content)
+            tmp_path = tmp.name
+        try:
+            result = await scanner.scan_file(tmp_path, analyzers=analyzers_list)
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+
+        return ScanResponse(
+            success=True,
+            message="File content scan completed",
+            result=result.to_dict(),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/scan/source-code", response_model=ScanResponse)
 async def scan_source_code(request: SourceCodeScanRequest):
     """Scan A2A agent source code.
@@ -276,7 +404,11 @@ async def scan_source_code(request: SourceCodeScanRequest):
     """
     try:
         config = Config()
-        scanner = Scanner(config)
+        policy = _resolve_policy(request.policy)
+        scanner = Scanner(
+            config, policy=policy, analyzers=build_analyzers(policy, config=config)
+        )
+        analyzers_list = request.analyzers if request.analyzers else None
 
         # Scan directory using scan_file on all files
         directory = Path(request.directory)
@@ -285,11 +417,9 @@ async def scan_source_code(request: SourceCodeScanRequest):
                 status_code=404, detail=f"Directory not found: {request.directory}"
             )
 
-        # For now, scan individual files and aggregate results
-        # In a full implementation, you'd want Scanner.scan_directory()
         all_findings = []
-        for file_path in directory.rglob("*.py"):
-            result = await scanner.scan_file(str(file_path))
+        for file_path in _iter_scannable_files(directory):
+            result = await scanner.scan_file(str(file_path), analyzers=analyzers_list)
             all_findings.extend(result.findings)
 
         # Create aggregated result
@@ -321,7 +451,10 @@ async def scan_endpoint(request: EndpointScanRequest):
 
     try:
         config = Config()
-        scanner = Scanner(config)
+        policy = _resolve_policy(request.policy)
+        scanner = Scanner(
+            config, policy=policy, analyzers=build_analyzers(policy, config=config)
+        )
 
         logger.info(f"Starting endpoint scan: {request.endpoint_url}")
 
@@ -428,7 +561,11 @@ async def full_scan(request: FullScanRequest):
     """
     try:
         config = Config()
-        scanner = Scanner(config)
+        policy = _resolve_policy(request.policy)
+        scanner = Scanner(
+            config, policy=policy, analyzers=build_analyzers(policy, config=config)
+        )
+        analyzers_list = request.analyzers if request.analyzers else None
         results = {}
 
         # Scan agent card if provided
@@ -440,8 +577,10 @@ async def full_scan(request: FullScanRequest):
         directory = Path(request.directory)
         if directory.exists():
             all_findings = []
-            for file_path in directory.rglob("*.py"):
-                result = await scanner.scan_file(str(file_path))
+            for file_path in _iter_scannable_files(directory):
+                result = await scanner.scan_file(
+                    str(file_path), analyzers=analyzers_list
+                )
                 all_findings.extend(result.findings)
 
             results["source_code"] = {
@@ -483,6 +622,7 @@ async def root():
             "docs": "/docs",
             "health": "/health",
             "scan_agent_card": "/scan/agent-card",
+            "scan_file": "/scan/file",
             "scan_source_code": "/scan/source-code",
             "scan_endpoint": "/scan/endpoint",
             "full_scan": "/scan/full",

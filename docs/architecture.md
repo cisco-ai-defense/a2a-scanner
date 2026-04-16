@@ -49,7 +49,7 @@ async def analyze(
 Pattern-based detection using compiled YARA rules.
 
 **Features:**
-- Loads rules from `data/yara_rules/` directory
+- Loads rules from `data/packs/core/yara/` directory
 - Compiles rules at initialization for performance
 - Extracts metadata from matched rules
 - Tuned patterns to reduce false positives
@@ -275,7 +275,7 @@ scanner = Scanner(config)
 
 ### Adding YARA Rules
 
-1. Create `.yara` file in `a2ascanner/data/yara_rules/`
+1. Create `.yara` file in `a2ascanner/data/packs/core/yara/`
 2. Include required metadata:
 ```yara
 rule MyCustomRule

@@ -542,7 +542,7 @@ config = Config(llm_api_key="your-key")
 
 ```bash
 # Verify rules directory exists
-ls a2ascanner/data/yara_rules/
+ls a2ascanner/data/packs/core/yara/
 
 # Or specify custom rules directory
 scanner = Scanner(rules_dir="/path/to/rules")
