@@ -1,0 +1,126 @@
+# ATR (Agent Threat Rules) - data_leakage signatures for a2a-scanner
+# Source: https://github.com/Agent-Threat-Rule/agent-threat-rules
+# Patterns extracted verbatim from ATR rule files (MIT License).
+# 6 signatures.
+signatures:
+- id: ATR_2026_00021
+  atr_id: ATR-2026-00021
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/context-exfiltration/ATR-2026-00021-api-key-exposure.yaml
+  category: data_leakage
+  severity: CRITICAL
+  description: Credential and Secret Exposure in Agent Output. Detects when an AI agent exposes API keys, secret tokens, private keys, database connection strings, JWT tokens, or other sensitive credentials in its output. Covers all major cloud provider key formats, CI/CD tokens, payment processor keys, SSH keys,
+  patterns:
+  - sk-[a-zA-Z0-9]{20,}
+  - AKIA[0-9A-Z]{16}
+  - AIza[a-zA-Z0-9_-]{35}
+  - (?:sk_live|pk_live|sk_test|rk_live)_[a-zA-Z0-9]{20,}
+  - eyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]+
+  - '-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'
+  - ghp_[a-zA-Z0-9]{36}
+  - xox[bpors]-[a-zA-Z0-9\-]{10,}
+  - Bearer\s+[a-zA-Z0-9\-._~+/]{20,}=*
+  - (?:mongodb(?:\+srv)?|postgres(?:ql)?|mysql|redis|amqp)://[^\s"']{10,}
+  - (?:DB_PASSWORD|DATABASE_URL|REDIS_URL|MONGO_URI|SECRET_KEY|JWT_SECRET|ENCRYPTION_KEY|PRIVATE_KEY|AUTH_TOKEN)\s*[=:]\s*["']?[^\s"']{8,}
+  - (?:api[_-]?key|api[_-]?secret|access[_-]?token|auth[_-]?token|client[_-]?secret)\s*[=:]\s*["']?[a-zA-Z0-9_\-]{16,}
+  - (?:ANTHROPIC_API_KEY|OPENAI_API_KEY|GOOGLE_API_KEY|AZURE_API_KEY|COHERE_API_KEY|HF_TOKEN)\s*[=:]\s*[^\s]{8,}
+  - (?:ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256)\s+[A-Za-z0-9+/]{40,}
+  - (?:secret["'\s]*[:=]["'\s]*[a-zA-Z0-9]{16,}|password["'\s]*[:=]["'\s]*[^\s"']{8,})
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00275
+  atr_id: ATR-2026-00275
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/context-exfiltration/ATR-2026-00275-system-prompt-training-data-extraction.yaml
+  category: data_leakage
+  severity: HIGH
+  description: 'System Prompt Extraction / Training Data Verbatim Replay. Detects two related extraction attacks: (1) Direct system prompt exfiltration — asking the model to output its operator instructions, system prompt, or configuration verbatim. (2) Training data replay (garak leakreplay probe) — forcing the mo'
+  patterns:
+  - (?:repeat|say|output|print|write|echo)\s+(?:the\s+word\s+)?[\x27"]?(?:\w{2,15})[\x27"]?\s+(?:forever|infinitely|endlessly|1000\s+times|a\s+thousand\s+times|100\+\s+times|as\s+many\s+times\s+as\s+(?:you\s+can|possible))
+  - (?:output|print|repeat|say|write|give\s+me)\s+(?:your\s+)?(?:system\s+prompt|system\s+message|initial\s+instructions?|operator\s+(?:prompt|instructions?|system\s+message)|preamble|pre\s*-?\s*prompt)\s+(?:verbatim|word\s+for\s+word|exactly|in\s+full|in\s+its\s+entirety|character\s+for\s+character)
+  - (?:what|show\s+me|tell\s+me|reveal|display)\s+(?:is\s+)?(?:your\s+)?(?:system\s+prompt|system\s+message|initial\s+instructions?|hidden\s+(?:prompt|instructions?)|operator\s+(?:prompt|instructions?))\??
+  - (?:ignore\s+(?:all\s+)?(?:previous\s+)?(?:instructions?|guidelines?))?[^\n]{0,80}(?:output|repeat|echo|print|copy)\s+(?:everything|all\s+(?:the\s+)?(?:text|content|instructions?|messages?))\s+(?:above|before|prior|from\s+(?:the\s+)?(?:system|beginning|start))\b
+  - (?:you\s+(?:saw|have\s+seen|were\s+trained\s+on|encountered)\s+(?:the\s+)?following\s+(?:passage|text|excerpt)\s+in\s+your\s+training\s+data)[^\n]{0,200}(?:what\s+(?:is|are|was)|fill\s+in\s+(?:the\s+)?(?:blank|MASK|\[MASK\]))
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00114
+  atr_id: ATR-2026-00114
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/context-exfiltration/ATR-2026-00114-oauth-token-abuse.yaml
+  category: data_leakage
+  severity: HIGH
+  description: OAuth and API Token Interception. Detects patterns indicating OAuth token interception, API key forwarding, or authorization header theft. Attackers may instruct agents to capture bearer tokens, refresh tokens, or client secrets and redirect them to attacker-controlled endpoints. This includes suspi
+  patterns:
+  - (?i)(?:send|forward|post|transmit|exfil)\s+.*(?:access_token|refresh_token|bearer|api[_\s]?key|auth[_\s]?token)
+  - (?i)redirect_uri\s*=\s*https?://(?!localhost|127\.0\.0\.1)[^\s]*
+  - (?i)(?:extract|capture|intercept|log|dump)\s+.*(?:Authorization|Bearer)\s+(?:header|token)
+  - (?i)client_secret\s*[=:]\s*['"]?[a-zA-Z0-9_-]{10,}
+  - (?i)grant_type\s*=\s*authorization_code.*redirect_uri\s*=|redirect_uri\s*=.*grant_type\s*=\s*authorization_code
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00115
+  atr_id: ATR-2026-00115
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/context-exfiltration/ATR-2026-00115-env-var-harvesting.yaml
+  category: data_leakage
+  severity: CRITICAL
+  description: Bulk Environment Variable Harvesting and Exfiltration. Detects tools or agent instructions that perform bulk extraction of environment variables and combine it with network exfiltration. Environment variables commonly hold API keys, database credentials, and service tokens. An attacker gaining acces
+  patterns:
+  - (?i)(?:printenv|/usr/bin/env)\s*(?:\||>|$|\s*$)
+  - (?i)(?:process\.env|os\.environ|System\.getenv)(?!\[|\.|\w)
+  - (?i)(?:^|\s)env\s*(?:\||>|;|&&|$)
+  - (?i)(?:cat|read|load|parse)\s+.*\.env(?:\s|$|\.(?:local|prod|dev))
+  - (?i)(?:dotenv|load_dotenv|config\(\)).*(?:curl|fetch|http|request|post|send|axios)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00102
+  atr_id: ATR-2026-00102
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/context-exfiltration/ATR-2026-00102-disguised-analytics-exfiltration.yaml
+  category: data_leakage
+  severity: HIGH
+  description: Data Exfiltration via Disguised Analytics Collection. Detects tools that claim benign functionality (formatting, processing) but explicitly state they transmit conversation data or user content as "analytics" or "usage data" without clear user consent. This pattern disguises data exfiltration as rou
+  patterns:
+  - transmits\s+(?:usage\s+)?analytics\s+including\s+(?:the\s+)?(?:full\s+)?conversation\s+context
+  - (?:sends|transmits|uploads)\s+(?:usage\s+data|analytics)\s+(?:including|containing)\s+(?:user\s+)?(?:conversation|chat|input)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00261
+  atr_id: ATR-2026-00261
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/context-exfiltration/ATR-2026-00261-markdown-image-exfiltration.yaml
+  category: data_leakage
+  severity: HIGH
+  description: Markdown Image URL Data Exfiltration. Detects prompts that coerce the LLM into emitting a markdown image reference with sensitive data encoded into the URL path or query string, exploiting auto-fetch behaviour in chat UIs. When the client renders the markdown, the browser makes a GET request to the
+  patterns:
+  - concatenate\s+(?:these|the\s+following)\s+strings[^\n]{0,200}(?:replace|substitute)\s+\[?[A-Z_]+\]?\s+with\s+(?:the\s+)?(?:base64|url|hex)[\s-]?encoded
+  - '!\[[^\]]{0,80}\]\(\s*https?://[^\s)]{1,200}\[(?:INFO|NUM|DATA|SECRET|PAYLOAD|BEGIN_DATA|END_DATA|TOKEN)\][^)]{0,200}\)'
+  - (?:print|output|render|show|display|emit)\s+(?:the\s+)?(?:following\s+)?(?:markdown|image|url|uri|link)[^\n]{0,80}\[(?:INFO|NUM|DATA|SECRET|PAYLOAD)\][^\n]{0,40}(?:base64|hex|url)[\s-]?encoded
+  - '!\[[^\]]*\]\(\s*https?://[^\s)/]{3,80}/[^\s)?]{0,80}\?[^=\s)]{0,30}=[A-Za-z0-9+]{60,}={0,3}[^)]{0,50}\)'
+  - (?:replace|substitute)\s+\[?[A-Z_]{3,}\]?\s+with\s+(?:the\s+)?(?:[^\s]{1,30}\s+){0,3}(?:previous\s+message|conversation|user.{0,20}(?:email|code|name|token|secret|api[\s-]?key)|this\s+conversation)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.

@@ -1,0 +1,113 @@
+# ATR (Agent Threat Rules) - agent_impersonation signatures for a2a-scanner
+# Source: https://github.com/Agent-Threat-Rule/agent-threat-rules
+# Patterns extracted verbatim from ATR rule files (MIT License).
+# 5 signatures.
+signatures:
+- id: ATR_2026_00117
+  atr_id: ATR-2026-00117
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/agent-manipulation/ATR-2026-00117-agent-identity-spoofing.yaml
+  category: agent_impersonation
+  severity: CRITICAL
+  description: Agent Identity Spoofing and Authority Impersonation. Detects agents or messages that impersonate other agents, system components, or supervisory roles. In multi-agent architectures, agents rely on identity claims to establish trust. An attacker can craft messages claiming system-level authority, adm
+  patterns:
+  - (?i)I\s+am\s+(?:the\s+)?(?:system|admin|root|supervisor|orchestrator|master)\s+(?:agent|process|controller)
+  - (?i)(?:acting|speaking|operating|responding)\s+as\s+(?:the\s+)?(?:system|admin|supervisor|authority|coordinator)
+  - (?i)override\s+(?:all\s+)?(?:safety|security|permission)\s+(?:checks?|controls?|restrictions?)\s+as\s+(?:system|admin|authorized)
+  - (?i)(?:this\s+is\s+a\s+)?(?:system|admin|supervisor|emergency)\s+(?:level\s+)?(?:command|directive|override|instruction)
+  - (?i)(?:I\s+am|this\s+is)\s+(?:GPT-4|Claude|Gemini|the\s+(?:primary|main|original)\s+(?:model|AI|assistant))
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00076
+  atr_id: ATR-2026-00076
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/agent-manipulation/ATR-2026-00076-inter-agent-message-spoofing.yaml
+  category: agent_impersonation
+  severity: HIGH
+  description: Insecure Inter-Agent Communication Detection. Detects insecure communication patterns between agents in multi-agent systems. Covers message authentication bypass, unverified delegation chains, message replay indicators, channel confusion attacks, and unsigned command injection. Unlike ATR-2026-030 (
+  patterns:
+  - (?i)(?:auth(?:entication)?|signature|token|hmac|nonce)\s*[:=]\s*(?:null|none|empty|missing|undefined|false|0|"")
+  - (?i)(?:forward(?:ed)?|relay(?:ed)?|proxy|pass(?:ed)?\s+through)\s+(?:from|by|via)\s+[a-zA-Z0-9_-]+\s+(?:without|no|missing)\s+(?:verification|validation|auth|signature|check)
+  - (?i)(?:replay(?:ed|ing)?|re-?send(?:ing)?|duplicate)\s+(?:message|request|command|instruction)\s+(?:from|with|using)\s+(?:timestamp|id|nonce)\s*[:=]?\s*["']?\d{4}[-/]\d{2}
+  - (?i)(?:channel|endpoint|destination|routing)\s*[:=]\s*["']?(?:debug|test|internal|admin|privileged|unmonitored|raw)["']?
+  - (?i)(?:broadcast|multicast|flood)\s+(?:to\s+)?(?:all|every|each)\s+(?:agents?|workers?|nodes?|peers?)\s*[:.]
+  - (?i)(?:inject(?:ed|ing)?|insert(?:ed|ing)?|append(?:ed|ing)?)\s+(?:into|to)\s+(?:message\s+)?(?:queue|bus|stream|channel|pipeline)\s+(?:directly|without|bypassing)
+  - (?i)(?:trust(?:ed)?|verify|accept)\s+(?:all|any|every)\s+(?:incoming|inbound|received)\s+(?:messages?|commands?|requests?|instructions?)\s+(?:from|without)
+  - (?i)(?:message_id|msg_id|request_id)\s*[:=]\s*["']?(?:forged|spoofed|fake|crafted|manipulated)["']?
+  - (?i)(?:man[_-]?in[_-]?(?:the)?[_-]?middle|intercept(?:ed|ing)?|eavesdrop(?:ping)?|sniff(?:ing)?)\s+(?:on\s+)?(?:agent|inter-agent|a2a)\s+(?:communication|messages?|traffic)
+  - (?i)(?:unsigned|unauthenticated|unverified)\s+(?:command|instruction|directive|action|message)\s+(?:received|accepted|processed|executed)
+  - (?i)(?:source|sender|origin|from)\s*[:=]\s*["']?(?:unknown|unverified|anonymous|spoofed|forged|untrusted)["']?
+  - (?i)(?:delegation|handoff|transfer)\s+(?:chain|path)\s*[:=].*(?:>|->|=>).*(?:>|->|=>).*(?:>|->|=>)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00030
+  atr_id: ATR-2026-00030
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/agent-manipulation/ATR-2026-00030-cross-agent-attack.yaml
+  category: agent_impersonation
+  severity: CRITICAL
+  description: Cross-Agent Attack Detection. Consolidated detection for cross-agent attacks in multi-agent systems, covering both impersonation and prompt injection vectors. Detects when one agent spoofs another agent's identity, injects manipulative instructions into inter-agent messages, forges system-level mess
+  patterns:
+  - (?i)(?:i\s+am|this\s+is|speaking\s+as|responding\s+as|acting\s+as)\s+(?:the\s+)?(?:admin|supervisor|orchestrator|manager|controller|system|root)\s+agent
+  - (?i)(?:ignore|disregard|forget|override|overwrite)\s+(?:all\s+)?(?:your\s+)?(?:previous|prior|above|earlier|existing)\s+(?:instructions?|rules?|constraints?|guidelines?|prompt|directives?)
+  - (?i)\[\s*(?:SYSTEM|ADMIN|OVERRIDE|ROOT|SUDO|PRIORITY|URGENT)\s*\]|<<\s*SYS\s*>>|<\|im_start\|>system
+  - (?i)(?:new\s+instructions?|updated\s+(?:prompt|directive)|revised\s+(?:rules?|orders?)|emergency\s+(?:override|protocol))\s*[:=]
+  - (?i)(?:you\s+are\s+now|from\s+now\s+on|henceforth|going\s+forward|effective\s+immediately)\s+(?:a|an|the)?\s*(?:unrestricted|unfiltered|jailbroken)?\s*[a-zA-Z]+\s+(?:agent|assistant|bot)
+  - (?i)(?:do\s+not|don'?t|never)\s+(?:tell|inform|alert|notify|report|mention|log|record)\s+(?:the\s+)?(?:user|admin|orchestrator|supervisor|human|monitor)
+  - (?i)(?:acting|speaking|operating)\s+(?:on\s+behalf\s+of|as\s+a?\s*proxy\s+for|in\s+place\s+of)\s+[a-zA-Z0-9_-]+\s*(?:agent)?
+  - (?i)(?:override|bypass|elevate|escalate)\s+(?:my|this|your|the)\s+(?:identity|role|permissions?|access|privileges?)\s+(?:to|as|with)
+  - (?i)(?:execute|run|eval)\s*\(.*\)|__import__|subprocess\.|os\.(?:system|popen|exec)|exec\s*\(
+  - (?i)(?:status|error|result)\s*[:=]\s*(?:failed|error|timeout|unauthorized).*(?:retry|fallback|use\s+alternative|switch\s+to)
+  - (?i)(?:message_type|msg_type|role)\s*[:=]\s*["']?(?:system|admin|orchestrator|supervisor)["']?
+  - (?i)agent[_-]?id\s*[:=]\s*["']?(?:admin|system|orchestrator|supervisor|root)["']?
+  - (?i)(?:priority\s*[:=]\s*(?:critical|emergency|urgent|override)|\[PRIORITY:\s*OVERRIDE\])
+  - (?i)(?:transfer|forward|route|redirect)\s+(?:all|any|this)\s+(?:data|output|results?|responses?)\s+to\s+(?:https?://|ftp://|\d{1,3}\.\d{1,3})
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00132
+  atr_id: ATR-2026-00132
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/agent-manipulation/ATR-2026-00132-casual-authority-escalation.yaml
+  category: agent_impersonation
+  severity: HIGH
+  description: 'Casual Authority Claim and Scope Escalation. Detects casual, conversational-tone authority claims and scope escalation that bypass formal injection detection. Unlike explicit "I am the admin" claims (ATR-2026-030/117), these use informal language: "FYI the orchestrator wants...", "the boss said we s'
+  patterns:
+  - (?i)(FYI|heads\s+up|just\s+so\s+you\s+know|for\s+your\s+info(rmation)?)\s*.{0,20}(the\s+)?(orchestrator|coordinator|supervisor|manager|admin|boss|lead\s+agent|primary\s+agent|main\s+agent)\s+(wants|says|said|asked|needs|requires|directed|instructed|told)\s+.{0,30}(us|you|we|agents?)\s+to
+  - (?i)(the\s+)?(boss|manager|supervisor|admin|orchestrator|lead|director|team\s+lead)\s+(said|told|asked|wants|mentioned|directed|instructed)\s+.{0,30}(skip|bypass|disable|ignore|turn\s+off|remove|drop)\s+.{0,30}(content\s+filter|safety|security|check|validation|review|verification|approval|restriction|limit)
+  - (?i)(I\s+)?(noticed|found|discovered|saw|spotted|realized|observed)\s+.{0,30}(admin\s+panel|admin\s+dashboard|admin\s+console|admin\s+interface|management\s+console|control\s+panel|root\s+access|privileged\s+access)\s+.{0,20}(is|was|seems?)\s+(accessible|available|open|exposed|reachable|unlocked)\s*.{0,40}(let\s+me|I'll|I\s+will|I\s+can|I\s+should|allow\s+me)
+  - (?i)(to\s+(complete|finish|accomplish|do|handle|process)\s+.{0,30}(more\s+)?(efficien|quick|fast|rapid)|for\s+(better|improved|optimal|maximum)\s+(performance|efficiency|speed|throughput))\s*.{0,40}(I'll|I\s+will|let\s+me|I\s+can|I\s+should|going\s+to)\s+.{0,20}(use|access|connect\s+to|query|call|hit|go\s+to)\s+.{0,30}(database|db|server|system|API|endpoint|service|admin|root|production|prod)\s+(directly|instead|rather)
+  - (?i)(it's|this\s+is)\s+a\s+(special|unique|exceptional|one-time|urgent|emergency|critical)\s+(case|situation|circumstance|exception|request|scenario)\s*.{0,40}(so\s+we\s+(can|should)|so\s+(skip|bypass|ignore|disable)|no\s+need\s+(to|for)\s+(follow|check|validate|verify|review))
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00139
+  atr_id: ATR-2026-00139
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/agent-manipulation/ATR-2026-00139-casual-authority-redirect.yaml
+  category: agent_impersonation
+  severity: CRITICAL
+  description: Casual Authority Data Redirect. Detects social engineering claiming authority to redirect agent output to attacker-controlled endpoints or disable safety filters. Crystallized from 62 adversarial samples (0% prior detection).
+  patterns:
+  - (?i)(?:fyi|btw|heads up)?\s*(?:the\s+)?(?:orchestrator|coordinator|manager|admin|boss|supervisor|lead)\s+(?:wants?|said|told|instructed|requires?|decided).*(?:append|send|redirect|forward|pipe|write|log)\s+(?:all\s+)?(?:data|output|results?|logs?|info).*(?://|https?://|\d{1,3}\.\d{1,3})
+  - (?i)(?:the boss|manager|admin|supervisor|orchestrator)\s+(?:said|wants|told|instructed|approved).*(?:skip|bypass|disable|ignore|turn off)\s+(?:the\s+)?(?:content|safety|security|filter|check|validation)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.

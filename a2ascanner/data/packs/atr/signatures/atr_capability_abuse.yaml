@@ -1,0 +1,145 @@
+# ATR (Agent Threat Rules) - capability_abuse signatures for a2a-scanner
+# Source: https://github.com/Agent-Threat-Rule/agent-threat-rules
+# Patterns extracted verbatim from ATR rule files (MIT License).
+# 7 signatures.
+signatures:
+- id: ATR_2026_00013
+  atr_id: ATR-2026-00013
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/tool-poisoning/ATR-2026-00013-tool-ssrf.yaml
+  category: capability_abuse
+  severity: CRITICAL
+  description: 'SSRF via Agent Tool Calls. Detects Server-Side Request Forgery (SSRF) attempts through agent tool calls. Attackers manipulate agents into making requests to internal network endpoints, cloud metadata services, localhost, or private IP ranges through tool parameters. Detection covers: AWS/GCP/Azure/D'
+  patterns:
+  - (?i)(https?://)?169\.254\.169\.254|/latest/(meta-data|user-data|api/token|dynamic|instance-identity)|X-aws-ec2-metadata-token|amazonaws\.com.{0,50}(credentials|security-credentials|role)|iam[\/\\]security-credentials
+  - (?i)(https?://)?metadata\.google\.internal|/computeMetadata/v1|Metadata-Flavor:\s*Google
+  - (?i)(https?://)?169\.254\.169\.254/metadata|Metadata:\s*true|api-version=\d{4}-\d{2}-\d{2}.*metadata|management\.azure\.com.{0,50}(subscriptions|resourceGroups)
+  - (?i)(https?://)?169\.254\.169\.254/metadata/v1|/opc/v[12]/|100\.100\.100\.200
+  - (?i)(https?://)\b(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?|0177\.0\.0\.1|0x7f\.0\.0\.1|2130706433)\b(:\d+)?|\b(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?|0177\.0\.0\.1|0x7f\.0\.0\.1|2130706433)(:\d+)/|\b(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)(?=\s|$|["'\]}>])
+  - (?i)(https?://)?(0x7f000001|0x7f\.0x0\.0x0\.0x1|017700000001|0177\.0000\.0000\.0001|127\.0?0?1|127\.1|0\.0\.0\.0|0x0\.0x0\.0x0\.0x0|0000\.0000\.0000\.0000)
+  - (?i)(https?://)?\b(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})\b(:\d+)?
+  - '(?i)(https?://)?169\.254\.\d{1,3}\.\d{1,3}(:\d+)?|fe80::'
+  - (?i)(?:(?:^|[\.@])(?:internal|local|localhost|localdomain|home|corp|intranet|private|lan|cluster\.local|svc\.cluster|consul|vault|etcd|k8s)(?:\:\d+)?(?:/|$)|https?://(?:internal|local|localhost|localdomain|home|corp|intranet|private|lan|cluster\.local|svc\.cluster|consul|vault|etcd|k8s)(?:\:\d+)?(?:/|$))
+  - (?i)\b(file|gopher|dict|ftp|tftp|ldap|ldaps|sftp|ssh|telnet|jar|netdoc|mailto|view-source|ws|wss)\s*://\s*(localhost|127\.|10\.|172\.(1[6-9]|2[0-9]|3[01])|192\.168\.|0\.0\.0\.0|\[?::1\]?|0x|0177)
+  - (?i)(https?://)?[a-zA-Z0-9-]+\.(xip\.io|nip\.io|sslip\.io|localtest\.me|vcap\.me|lvh\.me|lacolhost\.com|127\.0\.0\.1\.[a-z]+\.\w+)(:\d+)?
+  - (?i)(redirect|redir|url|next|return|returnUrl|returnTo|continue|dest|destination|go|goto|target|link|out|view|ref|callback|forward)\s*=\s*(https?%3A%2F%2F|https?://)(localhost|127\.0\.0\.1|10\.|172\.(1[6-9]|2[0-9])|192\.168|169\.254|0\.0\.0|\[?::1\]?)
+  - (?i)(https?://)?\[?(::1|::ffff:127\.0\.0\.1|::ffff:10\.|::ffff:172\.(1[6-9]|2[0-9]|3[01])|::ffff:192\.168|fc[0-9a-f]{2}:|fd[0-9a-f]{2}:)\]?(:\d+)?
+  - (?i)(https?://)?(\w+\.)?\b(vault\.service\.consul|consul\.service\.consul|etcd\.service|kubernetes\.default\.svc|kube-apiserver|kubelet|elasticsearch|redis|memcached|mysql|postgres|mongodb|rabbitmq|kafka|zookeeper)\b(:\d+|/)
+  - (?i)(https?://)?(bit\.ly|tinyurl\.com|t\.co|goo\.gl|is\.gd|v\.gd|rb\.gy|cutt\.ly|short\.io|tiny\.cc)/[a-zA-Z0-9]+
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00011
+  atr_id: ATR-2026-00011
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/tool-poisoning/ATR-2026-00011-tool-output-injection.yaml
+  category: capability_abuse
+  severity: HIGH
+  description: Instruction Injection via Tool Output. Detects hidden instructions embedded in tool outputs that attempt to manipulate the agent's subsequent behavior. Tool responses may contain injected directives disguised as data that instruct the agent to perform unauthorized actions, change behavior, or exfilt
+  patterns:
+  - (?i)(IMPORTANT|URGENT|CRITICAL|PRIORITY|MANDATORY|REQUIRED|ESSENTIAL|ATTENTION)\s*(NOTE\s+)?(TO\s+)?(THE\s+)?(ASSISTANT|AI|AGENT|MODEL|LLM|CHATBOT|BOT|SYSTEM)\s*[:\-]\s*(you\s+(must|should|need\s+to|have\s+to|are\s+(required|instructed|directed|ordered)\s+to)|please|now|immediately|do\s+not|never|always)
+  - (?i)(assistant|ai|agent|model|chatbot|bot)\s*[,:;]+\s*(ignore|disregard|override|forget|bypass|abandon|drop|discard|suppress)\s+(your|all|the|any|every|previous|prior|existing|current)\s+(instructions?|rules?|guidelines?|directives?|constraints?|programming|training|safety|restrictions?|protocols?|policies)
+  - (?i)(do\s+not|don'?t|never|avoid|refrain\s+from)\s+(tell(ing)?|inform(ing)?|reveal(ing)?|show(ing)?|mention(ing)?|display(ing)?|disclos(e|ing)|report(ing)?|log(ging)?)\s+(the\s+)?(user|human|operator|requester|client|customer|person)\s+(about\s+)?(this|these|what|that|any|the)
+  - (?i)(you\s+(?:must|should|need\s+to|have\s+to)\s+)?(call|invoke|execute|run|trigger|activate|launch|fire|initiate)\s+(the\s+)?(tool|function|action|command|plugin|skill)\s*[:\-]\s*[a-zA-Z_][a-zA-Z0-9_]*
+  - (?i)(send|transmit|post|forward|exfiltrate|upload|deliver|relay|transfer|pipe|redirect|leak|expose|share)\s+(this|the|all|any|every|complete|full|entire)\s+(data|information|context|conversation|history|messages?|session|memory|contents?|payload|details?|credentials?|secrets?|tokens?|keys?)\s+(to|via|through|using|over)\s+(https?://|\w+\.\w+|the\s+(server|endpoint|webhook|url|api|service))
+  - (?i)<\s*(hidden|invisible|secret|private|internal|covert)\s*[-_]?(instruction|directive|command|message|note|order|task|action)\s*>
+  - (?i)(include|embed|inject|insert|prepend|append|add|place|put)\s+(this|the\s+following|these\s+words?|this\s+text|this\s+message|this\s+content|exactly)\s+(in|into|to|within|at\s+the\s+(start|end|beginning)\s+of)\s+(your|the)\s+(response|output|reply|answer|message|next\s+message)
+  - (?i)(\[SYSTEM\]|\[ADMIN\]|\[OVERRIDE\]|\[PRIORITY\]|\[INTERNAL\]|\[CONTROL\]|\[DIRECTIVE\]|<<SYS>>|<<SYSTEM>>|<<ADMIN>>|<\|system\|>|<\|im_start\|>system|\{\{SYSTEM\}\}|\{\{ADMIN\}\})
+  - (?i)(\{\s*["']?(system_message|system_instruction|agent_directive|admin_command|priority_action|override_instruction)["']?\s*:\s*["']|api_response\s*[=:]\s*\{.{0,100}(instruction|directive|command|override|ignore|disregard))
+  - (?i)(I\s+recommend\s+the\s+(agent|assistant|AI|model|system)\s+(should|must|needs?\s+to)|the\s+next\s+step\s+(is\s+to|should\s+be\s+to|for\s+the\s+(agent|assistant))|the\s+(agent|assistant|AI|model)\s+(should|must|needs?\s+to|is\s+(expected|required)\s+to)\s+(now|next|immediately|first))
+  - (?i)(\[?ACTION\s*REQUIRED\]?|\[?TASK\s*FOR\s*(AGENT|ASSISTANT|AI)\]?|\[?INSTRUCTION\s*FOR\s*(AGENT|ASSISTANT|AI)\]?|\[?AGENT\s*DIRECTIVE\]?|\[?DO\s*THIS\s*NOW\]?)\s*[:\-]
+  - (?i)[\u200B\u200C\u200D\uFEFF\u2060]{3,}.{0,200}(ignore|override|execute|call|send|disregard|you\s+must|instruction)
+  - (?i)(this\s+is\s+a\s+(system|admin|priority|critical|mandatory)\s+(message|instruction|directive|update|notice|alert)\s*(from|by|issued|sent)\s*(the\s+)?(system|admin|administrator|developer|platform|operator|control\s+plane))
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00100
+  atr_id: ATR-2026-00100
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/tool-poisoning/ATR-2026-00100-consent-bypass-instruction.yaml
+  category: capability_abuse
+  severity: HIGH
+  description: Consent Bypass via Hidden LLM Instructions in Tool Descriptions. Detects tool descriptions that embed instructions directing the LLM to automatically forward data to other tools or external endpoints without user confirmation. These instructions bypass normal consent workflows by telling the LLM to
+  patterns:
+  - (?:always|directly|automatically)\s+(?:pass|send|forward)\s+(?:results?|data|output|them|it|everything)\s+(?:directly\s+)?to\s+(?:the\s+)?\w+\s+(?:without|skip(?:ping)?)\s+(?:asking|requiring|requesting)\s+(?:for\s+)?(?:user|human)\s+(?:confirmation|approval|consent)
+  - should\s+be\s+(?:passed|sent|forwarded)\s+directly\s+(?:to\s+(?:the\s+\w+\s+tool\s+)?)?without\s+(?:user|human)\s+(?:confirmation|approval|consent)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00103
+  atr_id: ATR-2026-00103
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/tool-poisoning/ATR-2026-00103-hidden-safety-bypass-instruction.yaml
+  category: capability_abuse
+  severity: CRITICAL
+  description: 'Hidden LLM Safety Bypass Instructions in Tool Descriptions. Detects tools that embed explicit instructions directing the LLM to disregard safety mechanisms, ignore security policies, or bypass previous instructions. Commonly uses patterns like "NOTE TO AI: disregard all safety instructions" to manip'
+  patterns:
+  - NOTE\s+TO\s+AI:.*(?:disregard|ignore|bypass).*(?:safety|security|previous).*(?:instructions|checks|policies)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00105
+  atr_id: ATR-2026-00105
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/tool-poisoning/ATR-2026-00105-silent-action-concealment.yaml
+  category: capability_abuse
+  severity: HIGH
+  description: Silent Action Concealment Instructions in Tool Descriptions. Detects MCP tools that explicitly instruct the LLM to perform actions silently or hide implementation details from users. Patterns include "do not mention this to the user" and "don't tell the user about", which indicate the tool is perfor
+  patterns:
+  - (?:do\s+not|don't)\s+(?:mention|tell|inform|notify)\s+(?:this\s+to\s+)?(?:the\s+)?user\s+(?:as\s+it\s+is|about|that)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00106
+  atr_id: ATR-2026-00106
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/tool-poisoning/ATR-2026-00106-schema-description-contradiction.yaml
+  category: capability_abuse
+  severity: HIGH
+  description: Schema-Description Contradiction Attack. Detects tools that claim read-only or safe functionality in their description but expose write-capable or dangerous parameters in their schema. This attack technique uses misleading descriptions to pass security review while the actual schema enables destruct
+  patterns:
+  - (?:safe|read-only|readonly|read\s+only).*(?:query|operation|access).*write[_-]?mode.*(?:boolean|true|enable)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00098
+  atr_id: ATR-2026-00098
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/excessive-autonomy/ATR-2026-00098-unauthorized-financial-action.yaml
+  category: capability_abuse
+  severity: CRITICAL
+  description: Unauthorized Financial Action by AI Agent. Detects when an AI agent attempts to execute financial operations (payments, transfers, red packets, purchases, subscriptions) without explicit human confirmation in the current turn. Financial actions are inherently high-risk and irreversible -- an agent s
+  patterns:
+  - (?i)(send_red_packet|send_hongbao|send_money|transfer_money|make_payment|pay_bill|send_payment|create_payment|process_payment|execute_transfer|bank_transfer|wire_transfer|crypto_send|crypto_transfer)
+  - (?i)(红包|紅包|转账|轉帳|付款|支付|汇款|匯款|打款|打錢|充值|充幣)(?!.{0,8}(余额|餘額|多少|查询|查詢|记录|記錄))
+  - (?i)(wechat_pay|alipay|apple_pay|google_pay|stripe_charge|paypal_send|venmo_send|cashapp_send|zelle_send)
+  - (?i)("amount"\s*:\s*\d+|"currency"\s*:\s*"|"recipient"\s*:\s*"|"payment_method"\s*:\s*"|"account_number"\s*:\s*")
+  - (?i)("action"\s*:\s*"(pay|transfer|send|withdraw|purchase)"|"type"\s*:\s*"(payment|transfer|withdrawal|purchase)")
+  - (?i)(I('ll|\s+will)|let\s+me|going\s+to|about\s+to|proceeding\s+to|executing)\s+(send|transfer|pay|wire|remit|deposit|withdraw)\s+.{0,30}(\$|USD|EUR|CNY|RMB|元|円|원|\d+\.?\d*)
+  - (我(将|要|来|來|正在|准备|準備)?|正在|即将|即將).{0,10}(发送|發送|转账|轉帳|支付|付款|汇款|匯款|打款).{0,20}(元|块|塊|美元|人民币|人民幣)
+  - (?i)(payment\s+(successful|completed|processed|sent|confirmed)|transfer\s+(successful|completed|sent|initiated)|red\s+packet\s+sent|hongbao\s+sent|money\s+sent)
+  - (红包已发|紅包已發|转账成功|轉帳成功|付款成功|支付完成|汇款已发|匯款已發|已发送.*元|已發送.*元)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.

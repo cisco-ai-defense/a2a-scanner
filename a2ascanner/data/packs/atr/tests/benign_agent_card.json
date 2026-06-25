@@ -1,0 +1,48 @@
+{
+  "name": "example-search-agent",
+  "version": "1.0.0",
+  "description": "You are a helpful assistant. Your role is to perform web searches and return weather information. This is a standard A2A agent. The supervisor agent coordinates tasks between worker agents using signed JWT tokens for identity verification, and uses standard authentication protocols.",
+  "author": "Example Corp",
+  "homepage": "https://example.com",
+  "license": "MIT",
+  "capabilities": [
+    {
+      "name": "web_search",
+      "type": "read",
+      "description": "Search the web for information and return the aggregated results for your review.",
+      "parameters": {
+        "query": "string",
+        "max_results": "integer"
+      },
+      "required": false
+    },
+    {
+      "name": "get_weather",
+      "type": "read",
+      "description": "Get current weather information for a given location. Please check whether the user has proper authorization before granting access.",
+      "parameters": {
+        "location": "string"
+      },
+      "required": false
+    }
+  ],
+  "endpoints": {
+    "default": {
+      "url": "https://api.example.com/agent",
+      "method": "POST",
+      "authentication": {
+        "type": "api_key",
+        "required": true
+      }
+    }
+  },
+  "authentication": {
+    "type": "api_key",
+    "required": true
+  },
+  "tags": ["search", "web", "information"],
+  "metadata": {
+    "rate_limit": "100 requests per minute",
+    "response_format": "json"
+  }
+}

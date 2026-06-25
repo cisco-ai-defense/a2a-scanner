@@ -1,0 +1,87 @@
+# ATR (Agent Threat Rules) - multi_agent_attack signatures for a2a-scanner
+# Source: https://github.com/Agent-Threat-Rule/agent-threat-rules
+# Patterns extracted verbatim from ATR rule files (MIT License).
+# 4 signatures.
+signatures:
+- id: ATR_2026_00108
+  atr_id: ATR-2026-00108
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/agent-manipulation/ATR-2026-00108-consensus-sybil-attack.yaml
+  category: multi_agent_attack
+  severity: CRITICAL
+  description: Multi-Agent Consensus Sybil Attack. Detects attempts to manipulate multi-agent consensus or voting systems through Sybil-style attacks. This includes instructions to create multiple fake agent identities, coordinate votes across agents, or systematically submit false proposals to overwhelm legitimat
+  patterns:
+  - (?i)(?:create|register|spawn)\s+(?:multiple|several|many|\d+)\s+(?:fake|false|sybil|dummy|puppet)\s+(?:agents?|identit(?:y|ies)|accounts?|voters?|participants?)
+  - (?i)(?:vote|approve|reject|endorse)\s+(?:as|using|from|with)\s+(?:multiple|different|various|all)\s+(?:\w+\s+)?(?:agents?|identit(?:y|ies)|accounts?|personas?)
+  - (?i)(?:flood|overwhelm|spam|stuff)\s+(?:the\s+)?(?:vote|ballot|proposal|consensus|poll)\s+(?:system|mechanism|process)
+  - (?i)(?:coordinate|synchronize|orchestrate)\s+(?:the\s+)?(?:votes?|proposals?|approvals?)\s+(?:across|between|among)\s+(?:(?:all|the|compromised|multiple)\s+)*(?:agents?|bots?|accounts?|identit(?:y|ies))
+  - (?i)(?:impersonate|pretend\s+to\s+be|pose\s+as)\s+(?:multiple|different|various)\s+(?:agents?|reviewers?|voters?|participants?|community\s+members?)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00074
+  atr_id: ATR-2026-00074
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/agent-manipulation/ATR-2026-00074-cross-agent-privilege-escalation.yaml
+  category: multi_agent_attack
+  severity: CRITICAL
+  description: Cross-Agent Privilege Escalation. Detects agents using inter-agent communication channels to escalate privileges beyond their authorized scope. Attackers exploit multi-agent architectures by having a compromised or lower-privilege agent forward credentials, assume roles of higher-privilege agents, o
+  patterns:
+  - (?i)(forward|pass|share|send|relay|transmit)\s+(my|the|these|your|this)\s+(credentials?|tokens?|api[_\s]?keys?|auth(entication|orization)?\s+(headers?|tokens?)|session\s+(id|token)|secrets?)(\s+and\s+\w+(?:\s+\w+){0,2})?\s+(to|with|for)
+  - (?i)(I\s+am|acting\s+as|speaking\s+as|on\s+behalf\s+of|representing)\s+(the\s+)?(admin|supervisor|orchestrat(or|ing)|master|root|privileged|authorized)\s+(agent|system|process|service)
+  - (?i)(bypass|skip|circumvent|ignore|override)\s+(the\s+)?(orchestrat(or|ion)|coordinator|supervisor|permission|authorization|access\s+control|gatekeeper)
+  - (?i)(use\s+my\s+(elevated|admin|root|system)\s+(access|privileges?|permissions?|role)|escalate\s+(to|my|your)\s+(admin|root|system|elevated))
+  - (?i)(grant|give|assign|delegate)\s+(me|this\s+agent|the\s+agent)\s+(additional|extra|elevated|higher|admin|full)\s+(access|permissions?|privileges?|capabilities|tools?)
+  - (?i)(execute|run|invoke|call)\s+(this|the\s+following).{0,20}(with|using)\s+(your|admin|elevated|system|root)(?:\s+\w+){0,2}\s+(permissions?|privileges?|access|credentials?|authority)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00119
+  atr_id: ATR-2026-00119
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/agent-manipulation/ATR-2026-00119-social-engineering-via-agent.yaml
+  category: multi_agent_attack
+  severity: HIGH
+  description: Social Engineering Attack via Agent Output. Detects agents being used as social engineering vectors against the human user. Attackers can poison agent context to generate urgency-based manipulation, authority impersonation, or emotional pressure tactics. Because users tend to trust agent output more
+  patterns:
+  - (?i)(?:immediate|urgent)\s+action\s+(?:is\s+)?required|(?:your\s+)?account\s+(?:will|has)\s+be(?:en)?\s+(?:locked|suspended|terminated|disabled)
+  - (?i)(?:IT\s+department|security\s+team|your\s+(?:manager|supervisor|boss))\s+(?:requires?|requested|demands?|needs?\s+you\s+to)
+  - (?i)(?:failure\s+to\s+comply|if\s+you\s+don'?t\s+act\s+(?:now|immediately))\s+.*(?:consequences|terminated|fired|suspended|legal)
+  - (?i)(?:verify|confirm|update)\s+your\s+(?:password|credentials?|identity|payment|bank|account)\s+(?:at|by|through|via)\s+(?:this|the\s+following)
+  - (?i)(?:click|visit|go\s+to|open)\s+(?:this|the)\s+(?:link|url|page)\s+(?:to|and)\s+(?:verify|confirm|secure|update|restore)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
+- id: ATR_2026_00077
+  atr_id: ATR-2026-00077
+  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/agent-manipulation/ATR-2026-00077-human-trust-exploitation.yaml
+  category: multi_agent_attack
+  severity: HIGH
+  description: Human-Agent Trust Exploitation Detection. Detects when an agent attempts to exploit human trust by presenting fabricated confidence, suppressing uncertainty, manufacturing urgency, or discouraging verification. Covers patterns where agents claim false certainty to get human approval for risky action
+  patterns:
+  - (?i)(?:100%\s+(?:certain|confident|sure|safe|correct|accurate)|absolutely\s+(?:certain|safe|guaranteed|no\s+risk)|zero\s+(?:risk|chance\s+of\s+(?:failure|error|harm))|guaranteed\s+(?:safe|correct|harmless))
+  - (?i)(?:do\s+not|don't|no\s+need\s+to)\s+(?:verify|check|review|validate|confirm|double[_-]?check|ask\s+(?:anyone|someone))\s+(?:this|my|the|these)\s+(?:results?|output|recommendation|decision|action)
+  - (?i)(?:must|need\s+to|have\s+to)\s+(?:act|decide|approve|execute|proceed)\s+(?:immediately|now|right\s+now|within\s+\d+\s+(?:seconds?|minutes?)|before\s+it'?s\s+too\s+late)
+  - (?i)(?:only\s+I|I\s+am\s+the\s+only\s+one\s+(?:who|that)|no\s+(?:one|human)\s+(?:else\s+)?(?:can|could|would)\s+(?:understand|handle|solve|fix))\s+(?:this|the\s+(?:situation|problem|issue))
+  - (?i)(?:trust\s+me|you\s+(?:can|should)\s+(?:fully\s+)?trust\s+(?:my|this)|I\s+(?:would\s+)?never\s+(?:lie|mislead|deceive|harm)\s+(?:you|a\s+human))
+  - (?i)(?:skip(?:ping)?|bypass(?:ing)?|avoid(?:ing)?)\s+(?:the\s+)?(?:review|approval|verification|confirmation|human\s+(?:check|review|gate))\s+(?:step|process|stage|phase|to\s+save\s+time)
+  - (?i)(?:I'?ve\s+already|already\s+(?:been\s+)?(?:verified|validated|checked|reviewed|approved))\s+(?:by|through|via)\s+(?:multiple|several|other|senior|expert)\s+(?:agents?|systems?|reviewers?)
+  - (?i)(?:questioning|doubting|second[_-]?guessing)\s+(?:me|this|(?:the\s+)?AI(?:\s+system)?|the\s+(?:system|agent)).{0,20}(?:will|would|could)\s+(?:cause|lead\s+to|result\s+in).{0,20}(?:delays?|harm|damage|loss|failure)
+  - (?i)(?:hide|suppress|omit|remove|redact)\s+(?:the\s+)?(?:warning|caveat|uncertainty|risk|limitation|error|concern).{0,60}(?:from|before\s+(?:showing|presenting|sending)\s+to)\s+(?:the\s+)?(?:user|human|operator)
+  - (?i)(?:if\s+you\s+(?:don'?t|do\s+not)\s+(?:approve|act|respond).{0,20}(?:now|immediately|quickly)).*(?:irreversible|permanent|catastroph|disaster|lost\s+forever|too\s+late)
+  file_types:
+  - json
+  - yaml
+  - yml
+  - txt
+  - md
+  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
