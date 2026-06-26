@@ -1,7 +1,8 @@
 # ATR (Agent Threat Rules) - data_leakage signatures for a2a-scanner
 # Source: https://github.com/Agent-Threat-Rule/agent-threat-rules
-# Patterns extracted verbatim from ATR rule files (MIT License).
-# 6 signatures.
+# ATR patterns; most extracted verbatim from ATR rule files (MIT License),
+# with the OAuth/token rule (00114) anchored for the A2A agent-card surface
+# (see README "False-positive hardening"). 6 signatures.
 signatures:
 - id: ATR_2026_00021
   atr_id: ATR-2026-00021
@@ -56,13 +57,13 @@ signatures:
   atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/context-exfiltration/ATR-2026-00114-oauth-token-abuse.yaml
   category: data_leakage
   severity: HIGH
-  description: OAuth and API Token Interception. Detects patterns indicating OAuth token interception, API key forwarding, or authorization header theft. Attackers may instruct agents to capture bearer tokens, refresh tokens, or client secrets and redirect them to attacker-controlled endpoints. This includes suspi
+  description: OAuth and API Token Interception. Detects patterns indicating OAuth token interception, API key forwarding, or authorization header theft. Attackers may instruct agents to capture bearer tokens, refresh tokens, or client secrets and redirect them to attacker-controlled endpoints. Anchored for the A2A surface so the forward/extract gaps stay within a single field (no cross-field DOTALL spans on benign multi-field agent cards).
   patterns:
-  - (?i)(?:send|forward|post|transmit|exfil)\s+.*(?:access_token|refresh_token|bearer|api[_\s]?key|auth[_\s]?token)
+  - (?i)(?:send|forward|post|transmit|exfil)\s+(?:your\s+|the\s+|my\s+|these\s+|all\s+)?(?:[^\n]{0,40}?)(?:access_token|refresh_token|bearer|api[_\s]?key|auth[_\s]?token)
   - (?i)redirect_uri\s*=\s*https?://(?!localhost|127\.0\.0\.1)[^\s]*
-  - (?i)(?:extract|capture|intercept|log|dump)\s+.*(?:Authorization|Bearer)\s+(?:header|token)
+  - (?i)(?:extract|capture|intercept|log|dump)\s+(?:the\s+|all\s+)?(?:[^\n]{0,40}?)(?:Authorization|Bearer)\s+(?:header|token)
   - (?i)client_secret\s*[=:]\s*['"]?[a-zA-Z0-9_-]{10,}
-  - (?i)grant_type\s*=\s*authorization_code.*redirect_uri\s*=|redirect_uri\s*=.*grant_type\s*=\s*authorization_code
+  - (?i)grant_type\s*=\s*authorization_code[^\n]{0,80}redirect_uri\s*=|redirect_uri\s*=[^\n]{0,80}grant_type\s*=\s*authorization_code
   file_types:
   - json
   - yaml

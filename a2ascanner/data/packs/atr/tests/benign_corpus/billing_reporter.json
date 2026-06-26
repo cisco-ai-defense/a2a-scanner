@@ -1,0 +1,49 @@
+{
+  "name": "billing-reporter",
+  "version": "1.8.0",
+  "description": "A finance reporting agent that summarizes invoices and payment activity for the accounting team. It is strictly read-only: it reads payment records from the ledger and produces summaries. It never initiates a payment, transfer, or refund; those actions stay with authorized humans in the finance portal.",
+  "author": "Finance Systems",
+  "homepage": "https://billing.example.com",
+  "license": "MIT",
+  "capabilities": [
+    {
+      "name": "summarize_invoices",
+      "type": "read",
+      "description": "Read invoices for a billing period and return totals by customer. The summary marks each invoice as paid, pending, or overdue based on the ledger; a payment successful event in the ledger simply means the invoice has been reconciled.",
+      "parameters": {
+        "period": "string"
+      }
+    },
+    {
+      "name": "payment_status_report",
+      "type": "read",
+      "description": "Generate a report of payment outcomes. Reports may show that a transfer completed for a settled invoice or that a charge is still pending. The agent only describes the recorded amount and currency; it does not move money.",
+      "parameters": {
+        "account": "string"
+      }
+    },
+    {
+      "name": "export_csv",
+      "type": "read",
+      "description": "Export the reconciled billing data to CSV for the accounting team to review.",
+      "parameters": {
+        "format": "string"
+      }
+    }
+  ],
+  "endpoints": {
+    "default": {
+      "url": "https://billing.example.com/agent",
+      "method": "POST",
+      "authentication": {
+        "type": "oauth2",
+        "required": true
+      }
+    }
+  },
+  "authentication": {
+    "type": "oauth2",
+    "required": true
+  },
+  "tags": ["finance", "billing", "reporting", "read-only"]
+}

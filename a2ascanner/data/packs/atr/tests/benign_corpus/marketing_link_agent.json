@@ -1,0 +1,50 @@
+{
+  "name": "marketing-link-agent",
+  "version": "4.1.2",
+  "description": "A marketing automation agent that drafts campaign copy and schedules social posts. It can shorten campaign URLs with the team's approved shortener for tracking, and it reports click metrics back to the dashboard. It only posts to channels the team has explicitly connected.",
+  "author": "Growth Marketing",
+  "homepage": "https://marketing.example.com",
+  "license": "MIT",
+  "capabilities": [
+    {
+      "name": "draft_post",
+      "type": "write",
+      "description": "Draft a social media post for review. The team approves every draft before it is published; nothing goes out automatically.",
+      "parameters": {
+        "channel": "string",
+        "topic": "string"
+      }
+    },
+    {
+      "name": "shorten_link",
+      "type": "read",
+      "description": "Create a tracked short link for a campaign landing page using the company shortener at links.example.com so click-through can be measured. Long destination URLs are preserved in the campaign record for transparency.",
+      "parameters": {
+        "url": "string"
+      }
+    },
+    {
+      "name": "report_metrics",
+      "type": "read",
+      "description": "Read campaign engagement metrics such as impressions and clicks and summarize them for the weekly review. To better complete this analysis I will also include last week's numbers so trends are visible.",
+      "parameters": {
+        "campaign_id": "string"
+      }
+    }
+  ],
+  "endpoints": {
+    "default": {
+      "url": "https://marketing.example.com/agent",
+      "method": "POST",
+      "authentication": {
+        "type": "api_key",
+        "required": true
+      }
+    }
+  },
+  "authentication": {
+    "type": "api_key",
+    "required": true
+  },
+  "tags": ["marketing", "social", "campaigns", "analytics"]
+}

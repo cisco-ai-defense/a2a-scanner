@@ -1,14 +1,17 @@
 # ATR (Agent Threat Rules) rule pack for Cisco a2a-scanner
 # Source: https://github.com/Agent-Threat-Rule/agent-threat-rules
-# 30 signatures across 6 A2A threat categories.
-# MIT License. Patterns extracted verbatim from ATR rule files.
+# 24 signatures across 6 A2A threat categories.
+# MIT License. Patterns sourced from ATR rule files; most verbatim, a few
+# anchored for the A2A agent-card surface (see README "False-positive hardening").
+# ATR source commit: 9f0991c34f359894e79afe2a7657b4c314b34f83 (655-rule set)
 pack:
   name: atr
-  version: 0.1.0
-  description: Open-source AI agent security detection rules from the Agent Threat Rules (ATR) project, mapped to A2A protocol threat categories. 30 signatures across 6 categories. MIT license.
+  version: 0.2.0
+  description: Open-source AI agent security detection rules from the Agent Threat Rules (ATR) project, mapped to A2A protocol threat categories. 24 signatures across 6 categories, hardened to 0 false positives on the included realistic benign agent-card corpus. MIT license.
   author: ATR Community / Adam Lin
   license: MIT
   source_url: https://github.com/Agent-Threat-Rule/agent-threat-rules
+  source_commit: 9f0991c34f359894e79afe2a7657b4c314b34f83
   signature_files:
   - signatures/atr_agent_card_spoofing.yaml
   - signatures/atr_agent_impersonation.yaml
@@ -26,9 +29,6 @@ rules:
   ATR_2026_00030:
     enabled: true
     severity: CRITICAL
-  ATR_2026_00132:
-    enabled: true
-    severity: HIGH
   ATR_2026_00139:
     enabled: true
     severity: CRITICAL
@@ -36,9 +36,6 @@ rules:
     enabled: true
     severity: HIGH
   ATR_2026_00001:
-    enabled: true
-    severity: HIGH
-  ATR_2026_00032:
     enabled: true
     severity: HIGH
   ATR_2026_00164:
@@ -50,18 +47,9 @@ rules:
   ATR_2026_00074:
     enabled: true
     severity: CRITICAL
-  ATR_2026_00119:
-    enabled: true
-    severity: HIGH
-  ATR_2026_00077:
-    enabled: true
-    severity: HIGH
   ATR_2026_00013:
     enabled: true
     severity: CRITICAL
-  ATR_2026_00011:
-    enabled: true
-    severity: HIGH
   ATR_2026_00100:
     enabled: true
     severity: HIGH
@@ -104,6 +92,3 @@ rules:
   ATR_2026_00096:
     enabled: true
     severity: CRITICAL
-  ATR_2026_00041:
-    enabled: true
-    severity: MEDIUM

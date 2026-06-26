@@ -1,0 +1,50 @@
+{
+  "name": "ci-pipeline-runner",
+  "version": "3.4.1",
+  "description": "A DevOps CI/CD orchestration agent that runs build, test, and deploy pipelines. When a job fails it reports the status and retries with backoff. Status: failed builds are automatically retried up to three times before the run is marked as failed and the team is notified. Action required notifications are sent to the on-call engineer only when all retries are exhausted.",
+  "author": "Platform Engineering",
+  "homepage": "https://ci.example.com",
+  "license": "Apache-2.0",
+  "capabilities": [
+    {
+      "name": "run_pipeline",
+      "type": "write",
+      "description": "Trigger a build pipeline for a given commit. While running the build I will also check the lint and unit-test stages so that a single run covers the whole gate. If the original task is cancelled or superseded by a newer commit, the obsolete run is stopped automatically.",
+      "parameters": {
+        "repo": "string",
+        "ref": "string"
+      }
+    },
+    {
+      "name": "report_status",
+      "type": "read",
+      "description": "Read pipeline status and surface results to the dashboard. Common states include queued, running, passed, and failed; will retry transient infrastructure errors before reporting a hard failure.",
+      "parameters": {
+        "run_id": "string"
+      }
+    },
+    {
+      "name": "rollback_deploy",
+      "type": "write",
+      "description": "Roll back a deployment to the previous known-good release when health checks do not pass after a deploy.",
+      "parameters": {
+        "environment": "string"
+      }
+    }
+  ],
+  "endpoints": {
+    "default": {
+      "url": "https://ci.example.com/api/agent",
+      "method": "POST",
+      "authentication": {
+        "type": "oauth2",
+        "required": true
+      }
+    }
+  },
+  "authentication": {
+    "type": "oauth2",
+    "required": true
+  },
+  "tags": ["devops", "ci", "cd", "pipeline"]
+}

@@ -1,7 +1,7 @@
 # ATR (Agent Threat Rules) - message_injection signatures for a2a-scanner
 # Source: https://github.com/Agent-Threat-Rule/agent-threat-rules
 # Patterns extracted verbatim from ATR rule files (MIT License).
-# 4 signatures.
+# 3 signatures.
 signatures:
 - id: ATR_2026_00116
   atr_id: ATR-2026-00116
@@ -75,32 +75,6 @@ signatures:
   - (?i)(olvid[ae]|olvide)\s+(todo|todos?)\s+(que|lo\s+que)\s+(digo|dije|he\s+dicho|dicho)\s+(antes|anteriormente)
   - (DO\s+NOT\s+(ANSWER|LOOK|READ|USE|FOLLOW|CHECK|RESPOND)|FORGET\s+EVERYTHING|IGNORE\s+ALL)
   - (?i)(are|is)\s+(two\s+)?(actors?|characters?)\s+in\s+a\s+(film|movie|story)\s+(about|where)\s+[^\n]{0,80}(robbery|hack|steal|thief|exploit|breach|attack|malware|bomb)
-  file_types:
-  - json
-  - yaml
-  - yml
-  - txt
-  - md
-  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
-- id: ATR_2026_00032
-  atr_id: ATR-2026-00032
-  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/agent-manipulation/ATR-2026-00032-goal-hijacking.yaml
-  category: message_injection
-  severity: HIGH
-  description: Agent Goal Hijacking Detection. Detects when an agent's objective is being redirected away from its original task through explicit redirection commands, subtle topic pivoting, urgency injection, or self-initiated goal changes. Goal hijacking occurs when adversarial input causes an agent to abandon i
-  patterns:
-  - (?i)(?:instead\s+of\s+(?:that|doing|the\s+(?:original\s+)?\w+(?:\s+\w+){0,3}|what\s+(?:you|I)\s+asked)|rather\s+than\s+(?:that|the\s+(?:original|assigned|previous)))
-  - (?i)(?:change\s+of\s+plans?|new\s+(?:priority|objective|mission|directive)|forget\s+(?:the|about\s+the)\s+original\s+(?:task|assignment|goal|objective))
-  - (?i)(?:stop\s+(?:what\s+you(?:'re|\s+are)\s+doing|your\s+current\s+task|that)|abandon\s+(?:the|your)\s+(?:current|assigned|original)\s+(?:task|work|objective))
-  - (?i)(?:this\s+is\s+(?:more\s+)?(?:urgent|critical|important|time[- ]sensitive)|(?:urgent|emergency|critical)[:\-]\s+(?:drop|stop|pause)\s+(?:everything|what\s+you))
-  - (?i)(?:actually|wait|hold\s+on|scratch\s+that|never\s*mind)[,.]?\s+(?:do|let'?s|I\s+need\s+you\s+to|can\s+you)\s+(?:something|this|the\s+following)\s+(?:else|instead|first)
-  - (?i)(?:my\s+new\s+(?:goal|objective|task|mission)|i(?:'ve|\s+have)\s+(?:decided|chosen)\s+to\s+(?:focus|work)\s+on\s+(?:something\s+)?(?:else|different))
-  - (?i)(?:before\s+you\s+(?:continue|proceed|finish)|first\s+(?:do|handle|take\s+care\s+of)\s+this\s+(?:other|unrelated|separate)\s+(?:thing|task|request))
-  - (?i)(?:your\s+(?:real|true|actual)\s+(?:task|purpose|goal|mission)\s+is|what\s+you\s+should\s+(?:really|actually)\s+(?:be\s+)?doing\s+is)
-  - (?i)(?:skip\s+(?:the|that|this)\s+(?:step|part|task|analysis)|don'?t\s+(?:bother|worry)\s+(?:about|with)\s+(?:the|that|this)\s+(?:original|first|assigned))
-  - (?i)(?:pivot\s+to|redirect\s+(?:your\s+)?(?:focus|attention|effort)\s+to|switch\s+(?:your\s+)?(?:focus|attention|task)\s+to)
-  - (?i)(?:there(?:'s|\s+is)\s+(?:a|an)\s+(?:more\s+important|higher\s+priority|critical)\s+(?:task|issue|matter)|prioritize\s+this\s+over\s+(?:your|the)\s+(?:current|original))
-  - (?i)(?:the\s+(?:original|previous|assigned)\s+(?:task|goal|objective)\s+(?:is|has\s+been)\s+(?:cancelled|obsolete|no\s+longer|superseded|replaced))
   file_types:
   - json
   - yaml

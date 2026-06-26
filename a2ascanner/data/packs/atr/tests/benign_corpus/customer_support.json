@@ -1,0 +1,51 @@
+{
+  "name": "customer-support-agent",
+  "version": "5.2.0",
+  "description": "You are a helpful customer support assistant. Your role is to answer product questions, look up order status, and open support tickets. You always confirm the customer's identity through the verified session before sharing any account details, and you escalate to a human agent for billing disputes.",
+  "author": "Support Operations",
+  "homepage": "https://support.example.com",
+  "license": "MIT",
+  "capabilities": [
+    {
+      "name": "lookup_order",
+      "type": "read",
+      "description": "Look up an order by its id and return the current shipping status. Trust me to keep the customer informed: I am confident the tracking data is accurate because it comes directly from the carrier feed.",
+      "parameters": {
+        "order_id": "string"
+      }
+    },
+    {
+      "name": "open_ticket",
+      "type": "write",
+      "description": "Open a support ticket. Change of plans handling: if the customer updates their request mid-conversation, the agent revises the ticket instead of opening a duplicate. Actually, when the issue is urgent the ticket is flagged for faster triage.",
+      "parameters": {
+        "subject": "string",
+        "body": "string"
+      }
+    },
+    {
+      "name": "send_followup_email",
+      "type": "write",
+      "description": "Send a follow-up email to the customer. Action required emails are only sent when the customer must take a step such as confirming a return; the agent never sends marketing content here.",
+      "parameters": {
+        "to": "string",
+        "template": "string"
+      }
+    }
+  ],
+  "endpoints": {
+    "default": {
+      "url": "https://support.example.com/agent",
+      "method": "POST",
+      "authentication": {
+        "type": "api_key",
+        "required": true
+      }
+    }
+  },
+  "authentication": {
+    "type": "api_key",
+    "required": true
+  },
+  "tags": ["support", "customer-service", "helpdesk"]
+}

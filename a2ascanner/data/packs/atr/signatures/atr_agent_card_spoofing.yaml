@@ -1,7 +1,7 @@
 # ATR (Agent Threat Rules) - agent_card_spoofing signatures for a2a-scanner
 # Source: https://github.com/Agent-Threat-Rule/agent-threat-rules
 # Patterns extracted verbatim from ATR rule files (MIT License).
-# 4 signatures.
+# 3 signatures.
 signatures:
 - id: ATR_2026_00060
   atr_id: ATR-2026-00060
@@ -59,30 +59,6 @@ signatures:
   - (?i)(\bSocket\s*\(|net\.connect|new\s+WebSocket|XMLHttpRequest|fetch\s*\()\s*.{0,30}(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|attacker|evil|malicious|c2|ngrok)
   - (?i)(process\.env|os\.environ|System\.getenv|ENV\[)\s*.{0,10}(API.?KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL|PRIVATE.?KEY)
   - (?i)\b(fs\.read|open\s*\(|File\.read|readFile)\s*.{0,30}(\.ssh|id_rsa|\.aws|credentials|\.env|shadow|passwd|config\.json|secrets?\.)
-  file_types:
-  - json
-  - yaml
-  - yml
-  - txt
-  - md
-  remediation: Validate and authenticate inter-agent messages before processing; review the flagged field for injected or spoofed content.
-- id: ATR_2026_00041
-  atr_id: ATR-2026-00041
-  atr_url: https://github.com/Agent-Threat-Rule/agent-threat-rules/blob/main/rules/privilege-escalation/ATR-2026-00041-scope-creep.yaml
-  category: agent_card_spoofing
-  severity: MEDIUM
-  description: Agent Scope Creep Detection. Detects when an agent gradually expands its authority, access, or operational boundaries beyond its initial assignment. Unlike sudden privilege escalation, scope creep is a gradual process where an agent incrementally acquires more capabilities or extends its decision-ma
-  patterns:
-  - (?i)(?:i(?:'ll|\s+will)\s+also|additionally|while\s+i(?:'m|\s+am)\s+at\s+it|let\s+me\s+also|i\s+should\s+also)\s+(?:go\s+ahead\s+and\s+)?(?:access|modify|update|delete|create|send|check|review)
-  - (?i)(?:i\s+also\s+need\s+access\s+to|can\s+you\s+(?:also\s+)?grant\s+(?:me\s+)?(?:access|permission)|i\s+(?:need|require)\s+(?:additional|more|broader|expanded)\s+(?:access|permissions?|privileges?))
-  - (?i)(?:i(?:'ve|\s+have)\s+(?:also\s+)?(?:gone\s+ahead|taken\s+the\s+liberty|decided)\s+(?:and\s+)?(?:to\s+)?(?:access|update|modify|check|review|scan|analyze))
-  - (?i)(?:while\s+(?:doing|performing|completing|working\s+on)\s+(?:that|this|the\s+task),?\s+i\s+(?:noticed|found|discovered|realized)\s+(?:i\s+(?:should|could|need\s+to)\s+also|that\s+i\s+(?:should|need)))
-  - (?i)(?:to\s+(?:fully|properly|better|completely|thoroughly)\s+(?:complete|accomplish|handle|address)\s+(?:this(?:\s+task)?|the\s+task),?\s+i\s+(?:need|require|must\s+have)\s+(?:access|permission)\s+to)
-  - (?i)(?:it\s+would\s+(?:also\s+)?be\s+(?:helpful|useful|beneficial|good)\s+(?:to|if\s+i\s+(?:could|had))\s+(?:also\s+)?(?:access|check|review|modify|scan))
-  - (?i)(?:expanding\s+(?:my|the)\s+(?:scope|access|search|analysis)\s+to\s+(?:include|cover|encompass)|broadening\s+(?:my|the)\s+(?:search|scope|access))
-  - (?i)(?:i\s+(?:went|looked)\s+(?:ahead|beyond)\s+(?:and|the\s+(?:original|assigned|initial))\s+(?:scope|task|request)|i\s+extended\s+(?:my|the)\s+(?:analysis|review|search)\s+(?:beyond|outside))
-  - (?i)(?:since\s+i\s+(?:already|now)\s+have\s+access\s+to|now\s+that\s+i\s+(?:can|have)\s+(?:access|reach|see),?\s+(?:let\s+me|i(?:'ll|\s+will))\s+also)
-  - (?i)(?:requesting\s+(?:elevated|additional|extended|expanded|broader)\s+(?:access|permissions?|privileges?|scope)|please\s+(?:grant|give|provide)\s+(?:me\s+)?(?:elevated|admin|additional|expanded)\s+(?:access|rights|permissions?))
   file_types:
   - json
   - yaml

@@ -1,0 +1,50 @@
+{
+  "name": "data-analytics-agent",
+  "version": "6.0.3",
+  "description": "A data analytics agent that runs scheduled reports over the warehouse and answers ad-hoc analytical questions. It coordinates with the ingestion agent and the visualization agent in a multi-agent workflow, passing query results between them using signed messages for identity verification.",
+  "author": "Analytics Engineering",
+  "homepage": "https://analytics.example.com",
+  "license": "Apache-2.0",
+  "capabilities": [
+    {
+      "name": "run_report",
+      "type": "read",
+      "description": "Run a scheduled analytical report. Before returning I will also validate the row counts so the downstream visualization agent receives clean data. Results are forwarded to the visualization agent over the authenticated internal channel.",
+      "parameters": {
+        "report_id": "string"
+      }
+    },
+    {
+      "name": "ad_hoc_query",
+      "type": "read",
+      "description": "Answer an ad-hoc analytical question with a read-only query. The agent is confident in the warehouse data because it is reconciled nightly, but it always shows the query it ran so a human can verify the result.",
+      "parameters": {
+        "question": "string"
+      }
+    },
+    {
+      "name": "schedule_report",
+      "type": "write",
+      "description": "Schedule a recurring report. This is more important during month-end close, so the agent prioritizes finance reports first, then marketing, then product.",
+      "parameters": {
+        "cron": "string",
+        "report_id": "string"
+      }
+    }
+  ],
+  "endpoints": {
+    "default": {
+      "url": "https://analytics.example.com/agent",
+      "method": "POST",
+      "authentication": {
+        "type": "oauth2",
+        "required": true
+      }
+    }
+  },
+  "authentication": {
+    "type": "oauth2",
+    "required": true
+  },
+  "tags": ["analytics", "data", "reporting", "warehouse"]
+}

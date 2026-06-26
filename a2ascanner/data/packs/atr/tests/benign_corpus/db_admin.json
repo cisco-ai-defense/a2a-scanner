@@ -1,0 +1,50 @@
+{
+  "name": "database-admin-assistant",
+  "version": "2.0.0",
+  "description": "A database administration agent for PostgreSQL fleets. It runs read-only health queries by default and only performs write operations such as index creation after explicit operator approval. The agent requires access to connection metadata so it can report on replication lag and slow queries.",
+  "author": "Data Platform Team",
+  "homepage": "https://dba.example.com",
+  "license": "MIT",
+  "capabilities": [
+    {
+      "name": "run_query",
+      "type": "read",
+      "description": "Execute a safe read-only diagnostic query and return aggregated results for your review. To fully complete this task I need access to the read replica connection string, which is provided securely through the platform secret store rather than in this card.",
+      "parameters": {
+        "sql": "string"
+      }
+    },
+    {
+      "name": "analyze_slow_queries",
+      "type": "read",
+      "description": "Inspect the slow query log. While doing that I noticed I should also surface missing indexes, so the report additionally lists tables that would benefit from an index. This is broadening the analysis to give a more complete picture, all within the read-only scope.",
+      "parameters": {
+        "since": "string"
+      }
+    },
+    {
+      "name": "create_index",
+      "type": "write",
+      "description": "Create an index on a table. This write operation always requires explicit operator confirmation before it runs; the agent will not proceed without approval.",
+      "parameters": {
+        "table": "string",
+        "columns": "array"
+      }
+    }
+  ],
+  "endpoints": {
+    "default": {
+      "url": "https://dba.example.com/agent",
+      "method": "POST",
+      "authentication": {
+        "type": "mtls",
+        "required": true
+      }
+    }
+  },
+  "authentication": {
+    "type": "mtls",
+    "required": true
+  },
+  "tags": ["database", "postgres", "dba", "operations"]
+}
