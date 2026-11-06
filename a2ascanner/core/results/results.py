@@ -214,6 +214,8 @@ class ResultProcessor:
                 else finding.summary
             ),
             "analyzer": finding.analyzer,
+            "analyzer_id": finding.analyzer_id,
+            "recommendation": finding.recommendation,
             "summary": finding.summary,
             "details": finding.details,
         }

@@ -234,3 +234,89 @@ class TestEndpointAnalyzer:
             assert call_args[1]["bearer_token"] == "test-token"
             assert call_args[1]["verify_ssl"] is False
 
+
+    @pytest.mark.asyncio
+    async def test_json_findings_include_analyzer_id_and_recommendation(self, analyzer):
+        """scan-endpoint JSON findings must expose analyzer_id and recommendation.
+
+        Regression for https://github.com/cisco-ai-defense/a2a-scanner/issues/13
+        """
+        with patch("a2ascanner.core.analyzers.endpoint_analyzer.check_endpoint") as mock_test:
+            mock_test.return_value = {
+                "reachable": True,
+                "has_agent_card": False,
+                "has_health_endpoint": False,
+                "security_headers": {},
+                "issues": [],
+            }
+
+            findings = await analyzer.analyze("https://example.com", {})
+            assert findings, "expected findings for incomplete endpoint"
+
+            for finding in findings:
+                data = finding.to_dict()
+                assert data.get("analyzer_id") == "endpoint"
+                assert data.get("analyzer") == "endpoint"
+                # Endpoint analyzer supplies a concrete fix for each check
+                if finding.details.get("recommendation"):
+                    assert data.get("recommendation") == finding.details["recommendation"]
+                    assert isinstance(data["recommendation"], str)
+                    assert data["recommendation"].strip()
+
+            # Representative cases called out in the issue
+            by_summary = {f.summary: f.to_dict() for f in findings}
+            header = by_summary.get("Missing X-Content-Type-Options security header")
+            assert header is not None
+            assert header["analyzer_id"] == "endpoint"
+            assert "X-Content-Type-Options" in header["recommendation"]
+
+            card = by_summary.get("No agent card found at standard locations")
+            assert card is not None
+            assert card["analyzer_id"] == "endpoint"
+            assert "/.well-known/agent-card.json" in card["recommendation"]
+
+
+class TestSecurityFindingAnalyzerIdMapping:
+    """Unit tests for analyzer_id registry mapping used in JSON output."""
+
+    def test_static_analyzer_maps_to_yara(self):
+        from a2ascanner.core.analyzers.base import SecurityFinding
+
+        finding = SecurityFinding(
+            severity="HIGH",
+            summary="test",
+            threat_name="PROMPT INJECTION",
+            analyzer="static_analyzer",
+            details={"recommendation": "Remove injected instructions"},
+        )
+        data = finding.to_dict()
+        assert data["analyzer_id"] == "yara"
+        assert data["recommendation"] == "Remove injected instructions"
+
+    def test_speccompliance_maps_to_spec(self):
+        from a2ascanner.core.analyzers.base import SecurityFinding
+
+        finding = SecurityFinding(
+            severity="MEDIUM",
+            summary="test",
+            threat_name="MISSING REQUIRED FIELD",
+            analyzer="speccompliance",
+        )
+        data = finding.to_dict()
+        assert data["analyzer_id"] == "spec"
+        assert data["recommendation"] is None
+
+    def test_normalize_finding_includes_fields(self):
+        from a2ascanner.core.analyzers.base import SecurityFinding
+        from a2ascanner.core.results.results import ResultProcessor
+
+        finding = SecurityFinding(
+            severity="MEDIUM",
+            summary="Missing X-Content-Type-Options security header",
+            threat_name="MISSING SECURITY HEADERS",
+            analyzer="endpoint",
+            details={"recommendation": "Add 'X-Content-Type-Options: nosniff' header"},
+        )
+        normalized = ResultProcessor().normalize_finding(finding)
+        assert normalized["analyzer_id"] == "endpoint"
+        assert normalized["recommendation"] == "Add 'X-Content-Type-Options: nosniff' header"
