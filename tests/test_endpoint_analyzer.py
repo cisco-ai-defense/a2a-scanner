@@ -135,6 +135,11 @@ class TestEndpointAnalyzer:
             assert len(findings) > 0
             assert any(f.severity == "HIGH" for f in findings)
             assert any("unreachable" in f.summary.lower() for f in findings)
+            unreachable = next(f for f in findings if "unreachable" in f.summary.lower())
+            data = unreachable.to_dict()
+            assert data["analyzer_id"] == "endpoint"
+            assert data["recommendation"]
+            assert "reachable" in data["recommendation"].lower() or "endpoint" in data["recommendation"].lower()
     
     @pytest.mark.asyncio
     async def test_timeout_error(self, analyzer):
@@ -320,3 +325,40 @@ class TestSecurityFindingAnalyzerIdMapping:
         normalized = ResultProcessor().normalize_finding(finding)
         assert normalized["analyzer_id"] == "endpoint"
         assert normalized["recommendation"] == "Add 'X-Content-Type-Options: nosniff' header"
+
+
+class TestResultProcessorMergeFields:
+    """Dedup merge must keep all analyzer IDs and any recommendation."""
+
+    def test_merge_preserves_analyzer_ids_and_recommendation(self):
+        from a2ascanner.core.analyzers.base import SecurityFinding
+        from a2ascanner.core.results.results import ResultProcessor
+
+        findings = [
+            SecurityFinding(
+                severity="MEDIUM",
+                summary="Missing X-Content-Type-Options security header",
+                threat_name="MISSING SECURITY HEADERS",
+                analyzer="heuristic",
+                details={"endpoint": "https://example.com"},
+            ),
+            SecurityFinding(
+                severity="MEDIUM",
+                summary="Missing X-Content-Type-Options security header",
+                threat_name="MISSING SECURITY HEADERS",
+                analyzer="endpoint",
+                details={
+                    "endpoint": "https://example.com",
+                    "recommendation": "Add 'X-Content-Type-Options: nosniff' header",
+                },
+            ),
+        ]
+        processor = ResultProcessor(deduplicate=True)
+        normalized = [processor.normalize_finding(f) for f in findings]
+        merged = processor.deduplicate_findings(normalized)
+        assert len(merged) == 1
+        result = merged[0]
+        assert result["recommendation"] == "Add 'X-Content-Type-Options: nosniff' header"
+        assert "endpoint" in result["detected_by_analyzer_ids"]
+        assert "heuristic" in result["detected_by_analyzer_ids"]
+        assert set(result["detected_by_analyzers"]) == {"endpoint", "heuristic"}
