@@ -125,9 +125,12 @@ class ResultProcessor:
         Returns:
             Merged finding with combined information
         """
-        # Use the first finding as base
+        # Use the first finding as base; copy details so later merges
+        # (recommendation / deduplication_note) do not mutate the original.
         merged = findings[0].copy()
-        
+        if isinstance(merged.get("details"), dict):
+            merged["details"] = merged["details"].copy()
+
         # Collect all analyzers that detected this
         analyzers = [f.get("analyzer", "Unknown") for f in findings]
         unique_analyzers = sorted(set(analyzers))

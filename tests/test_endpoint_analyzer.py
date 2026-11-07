@@ -362,3 +362,37 @@ class TestResultProcessorMergeFields:
         assert "endpoint" in result["detected_by_analyzer_ids"]
         assert "heuristic" in result["detected_by_analyzer_ids"]
         assert set(result["detected_by_analyzers"]) == {"endpoint", "heuristic"}
+
+
+    def test_merge_does_not_mutate_original_details(self):
+        """Later recommendation must not rewrite the first finding's details dict."""
+        from a2ascanner.core.analyzers.base import SecurityFinding
+        from a2ascanner.core.results.results import ResultProcessor
+
+        first = SecurityFinding(
+            severity="MEDIUM",
+            summary="Missing X-Content-Type-Options security header",
+            threat_name="MISSING SECURITY HEADERS",
+            analyzer="heuristic",
+            details={"endpoint": "https://example.com", "field_location": "headers"},
+        )
+        second = SecurityFinding(
+            severity="MEDIUM",
+            summary="Missing X-Content-Type-Options security header",
+            threat_name="MISSING SECURITY HEADERS",
+            analyzer="endpoint",
+            details={
+                "endpoint": "https://example.com",
+                "field_location": "headers",
+                "recommendation": "Add 'X-Content-Type-Options: nosniff' header",
+            },
+        )
+        processor = ResultProcessor(deduplicate=True)
+        normalized = [processor.normalize_finding(f) for f in (first, second)]
+        first_details = normalized[0]["details"]
+        assert "recommendation" not in first_details
+        merged = processor.deduplicate_findings(normalized)
+        assert len(merged) == 1
+        assert merged[0]["recommendation"].startswith("Add 'X-Content-Type-Options")
+        assert "recommendation" not in first_details
+        assert first_details.get("deduplication_note") is None
