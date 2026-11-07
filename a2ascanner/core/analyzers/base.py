@@ -99,11 +99,44 @@ class SecurityFinding:
         threat_info = get_threat_info(self.analyzer, self.threat_name)
         return threat_info.get("scanner_category", "") if threat_info else ""
 
+    @staticmethod
+    def registry_analyzer_id(analyzer_name: str) -> Optional[str]:
+        """Map an analyzer display name to the public registry / CLI id.
+
+        Matches ``Scanner._analyzer_registry_key`` so JSON consumers can group
+        findings by the same ids used with ``--analyzers`` (yara, heuristic,
+        spec, endpoint, llm).
+        """
+        if not analyzer_name:
+            return None
+        key = analyzer_name.lower()
+        if key == "speccompliance":
+            return "spec"
+        if key == "static_analyzer":
+            return "yara"
+        return key
+
+    @property
+    def analyzer_id(self) -> Optional[str]:
+        """Public analyzer id for JSON consumers (see ``registry_analyzer_id``)."""
+        return self.registry_analyzer_id(self.analyzer)
+
+    @property
+    def recommendation(self) -> Optional[str]:
+        """Concrete remediation text, when the producing analyzer supplied one."""
+        if not self.details:
+            return None
+        value = self.details.get("recommendation")
+        return value if isinstance(value, str) and value.strip() else None
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert finding to dictionary format with taxonomy enrichment.
 
         Returns:
             Dictionary representation of the finding with taxonomy fields.
+            Includes top-level ``analyzer_id`` and ``recommendation`` so
+            JSON consumers (e.g. ``scan-endpoint -o``) can triage without
+            digging into ``details``.
         """
         from ..threats import get_threat_info
 
@@ -123,6 +156,8 @@ class SecurityFinding:
                 "aisubtech_name": threat_info.get("aisubtech_name", ""),
                 "description": threat_info.get("description", self.summary),
                 "analyzer": self.analyzer,
+                "analyzer_id": self.analyzer_id,
+                "recommendation": self.recommendation,
                 "details": self.details,
             }
         else:
@@ -138,6 +173,8 @@ class SecurityFinding:
                 "aisubtech_name": "",
                 "description": self.summary,
                 "analyzer": self.analyzer,
+                "analyzer_id": self.analyzer_id,
+                "recommendation": self.recommendation,
                 "details": self.details,
             }
 

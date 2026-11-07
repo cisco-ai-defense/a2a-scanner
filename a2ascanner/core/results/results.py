@@ -125,18 +125,52 @@ class ResultProcessor:
         Returns:
             Merged finding with combined information
         """
-        # Use the first finding as base
+        # Use the first finding as base; copy details so later merges
+        # (recommendation / deduplication_note) do not mutate the original.
         merged = findings[0].copy()
-        
+        if isinstance(merged.get("details"), dict):
+            merged["details"] = merged["details"].copy()
+
         # Collect all analyzers that detected this
         analyzers = [f.get("analyzer", "Unknown") for f in findings]
         unique_analyzers = sorted(set(analyzers))
+
+        # Preserve registry IDs for every producer (parallel to detected_by_analyzers)
+        from ..analyzers.base import SecurityFinding
+
+        analyzer_ids = []
+        for f in findings:
+            aid = f.get("analyzer_id")
+            if not aid:
+                aid = SecurityFinding.registry_analyzer_id(f.get("analyzer", ""))
+            if aid and aid not in analyzer_ids:
+                analyzer_ids.append(aid)
+        analyzer_ids = sorted(set(analyzer_ids))
         
         # Keep the original analyzer field (use first one for threat mapping compatibility)
         # but add additional fields to show all detections
         merged["analyzer"] = analyzers[0]  # Keep original for compatibility
+        merged["analyzer_id"] = (
+            findings[0].get("analyzer_id")
+            or SecurityFinding.registry_analyzer_id(analyzers[0])
+        )
         merged["detected_by_analyzers"] = unique_analyzers  # New field for all analyzers
+        merged["detected_by_analyzer_ids"] = analyzer_ids
         merged["detected_by_count"] = len(unique_analyzers)
+
+        # Keep the first concrete recommendation among the group
+        if not merged.get("recommendation"):
+            for f in findings[1:]:
+                rec = f.get("recommendation")
+                if isinstance(rec, str) and rec.strip():
+                    merged["recommendation"] = rec
+                    details = merged.get("details")
+                    if not isinstance(details, dict):
+                        details = {}
+                        merged["details"] = details
+                    if not details.get("recommendation"):
+                        details["recommendation"] = rec
+                    break
         
         # Keep highest severity
         severity_order = {"HIGH": 3, "MEDIUM": 2, "LOW": 1, "UNKNOWN": 0}
@@ -214,6 +248,8 @@ class ResultProcessor:
                 else finding.summary
             ),
             "analyzer": finding.analyzer,
+            "analyzer_id": finding.analyzer_id,
+            "recommendation": finding.recommendation,
             "summary": finding.summary,
             "details": finding.details,
         }

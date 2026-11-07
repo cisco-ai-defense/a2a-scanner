@@ -94,6 +94,10 @@ class EndpointAnalyzer(BaseAnalyzer):
                         details={
                             "endpoint": endpoint_url,
                             "issues": test_results.get("issues", []),
+                            "recommendation": (
+                                "Verify the endpoint URL is correct and the agent "
+                                "service is running and reachable from this host"
+                            ),
                         },
                     )
                 )

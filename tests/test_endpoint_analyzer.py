@@ -135,6 +135,11 @@ class TestEndpointAnalyzer:
             assert len(findings) > 0
             assert any(f.severity == "HIGH" for f in findings)
             assert any("unreachable" in f.summary.lower() for f in findings)
+            unreachable = next(f for f in findings if "unreachable" in f.summary.lower())
+            data = unreachable.to_dict()
+            assert data["analyzer_id"] == "endpoint"
+            assert data["recommendation"]
+            assert "reachable" in data["recommendation"].lower() or "endpoint" in data["recommendation"].lower()
     
     @pytest.mark.asyncio
     async def test_timeout_error(self, analyzer):
@@ -234,3 +239,160 @@ class TestEndpointAnalyzer:
             assert call_args[1]["bearer_token"] == "test-token"
             assert call_args[1]["verify_ssl"] is False
 
+
+    @pytest.mark.asyncio
+    async def test_json_findings_include_analyzer_id_and_recommendation(self, analyzer):
+        """scan-endpoint JSON findings must expose analyzer_id and recommendation.
+
+        Regression for https://github.com/cisco-ai-defense/a2a-scanner/issues/13
+        """
+        with patch("a2ascanner.core.analyzers.endpoint_analyzer.check_endpoint") as mock_test:
+            mock_test.return_value = {
+                "reachable": True,
+                "has_agent_card": False,
+                "has_health_endpoint": False,
+                "security_headers": {},
+                "issues": [],
+            }
+
+            findings = await analyzer.analyze("https://example.com", {})
+            assert findings, "expected findings for incomplete endpoint"
+
+            for finding in findings:
+                data = finding.to_dict()
+                assert data.get("analyzer_id") == "endpoint"
+                assert data.get("analyzer") == "endpoint"
+                # Endpoint analyzer supplies a concrete fix for each check
+                if finding.details.get("recommendation"):
+                    assert data.get("recommendation") == finding.details["recommendation"]
+                    assert isinstance(data["recommendation"], str)
+                    assert data["recommendation"].strip()
+
+            # Representative cases called out in the issue
+            by_summary = {f.summary: f.to_dict() for f in findings}
+            header = by_summary.get("Missing X-Content-Type-Options security header")
+            assert header is not None
+            assert header["analyzer_id"] == "endpoint"
+            assert "X-Content-Type-Options" in header["recommendation"]
+
+            card = by_summary.get("No agent card found at standard locations")
+            assert card is not None
+            assert card["analyzer_id"] == "endpoint"
+            assert "/.well-known/agent-card.json" in card["recommendation"]
+
+
+class TestSecurityFindingAnalyzerIdMapping:
+    """Unit tests for analyzer_id registry mapping used in JSON output."""
+
+    def test_static_analyzer_maps_to_yara(self):
+        from a2ascanner.core.analyzers.base import SecurityFinding
+
+        finding = SecurityFinding(
+            severity="HIGH",
+            summary="test",
+            threat_name="PROMPT INJECTION",
+            analyzer="static_analyzer",
+            details={"recommendation": "Remove injected instructions"},
+        )
+        data = finding.to_dict()
+        assert data["analyzer_id"] == "yara"
+        assert data["recommendation"] == "Remove injected instructions"
+
+    def test_speccompliance_maps_to_spec(self):
+        from a2ascanner.core.analyzers.base import SecurityFinding
+
+        finding = SecurityFinding(
+            severity="MEDIUM",
+            summary="test",
+            threat_name="MISSING REQUIRED FIELD",
+            analyzer="speccompliance",
+        )
+        data = finding.to_dict()
+        assert data["analyzer_id"] == "spec"
+        assert data["recommendation"] is None
+
+    def test_normalize_finding_includes_fields(self):
+        from a2ascanner.core.analyzers.base import SecurityFinding
+        from a2ascanner.core.results.results import ResultProcessor
+
+        finding = SecurityFinding(
+            severity="MEDIUM",
+            summary="Missing X-Content-Type-Options security header",
+            threat_name="MISSING SECURITY HEADERS",
+            analyzer="endpoint",
+            details={"recommendation": "Add 'X-Content-Type-Options: nosniff' header"},
+        )
+        normalized = ResultProcessor().normalize_finding(finding)
+        assert normalized["analyzer_id"] == "endpoint"
+        assert normalized["recommendation"] == "Add 'X-Content-Type-Options: nosniff' header"
+
+
+class TestResultProcessorMergeFields:
+    """Dedup merge must keep all analyzer IDs and any recommendation."""
+
+    def test_merge_preserves_analyzer_ids_and_recommendation(self):
+        from a2ascanner.core.analyzers.base import SecurityFinding
+        from a2ascanner.core.results.results import ResultProcessor
+
+        findings = [
+            SecurityFinding(
+                severity="MEDIUM",
+                summary="Missing X-Content-Type-Options security header",
+                threat_name="MISSING SECURITY HEADERS",
+                analyzer="heuristic",
+                details={"endpoint": "https://example.com"},
+            ),
+            SecurityFinding(
+                severity="MEDIUM",
+                summary="Missing X-Content-Type-Options security header",
+                threat_name="MISSING SECURITY HEADERS",
+                analyzer="endpoint",
+                details={
+                    "endpoint": "https://example.com",
+                    "recommendation": "Add 'X-Content-Type-Options: nosniff' header",
+                },
+            ),
+        ]
+        processor = ResultProcessor(deduplicate=True)
+        normalized = [processor.normalize_finding(f) for f in findings]
+        merged = processor.deduplicate_findings(normalized)
+        assert len(merged) == 1
+        result = merged[0]
+        assert result["recommendation"] == "Add 'X-Content-Type-Options: nosniff' header"
+        assert "endpoint" in result["detected_by_analyzer_ids"]
+        assert "heuristic" in result["detected_by_analyzer_ids"]
+        assert set(result["detected_by_analyzers"]) == {"endpoint", "heuristic"}
+
+
+    def test_merge_does_not_mutate_original_details(self):
+        """Later recommendation must not rewrite the first finding's details dict."""
+        from a2ascanner.core.analyzers.base import SecurityFinding
+        from a2ascanner.core.results.results import ResultProcessor
+
+        first = SecurityFinding(
+            severity="MEDIUM",
+            summary="Missing X-Content-Type-Options security header",
+            threat_name="MISSING SECURITY HEADERS",
+            analyzer="heuristic",
+            details={"endpoint": "https://example.com", "field_location": "headers"},
+        )
+        second = SecurityFinding(
+            severity="MEDIUM",
+            summary="Missing X-Content-Type-Options security header",
+            threat_name="MISSING SECURITY HEADERS",
+            analyzer="endpoint",
+            details={
+                "endpoint": "https://example.com",
+                "field_location": "headers",
+                "recommendation": "Add 'X-Content-Type-Options: nosniff' header",
+            },
+        )
+        processor = ResultProcessor(deduplicate=True)
+        normalized = [processor.normalize_finding(f) for f in (first, second)]
+        first_details = normalized[0]["details"]
+        assert "recommendation" not in first_details
+        merged = processor.deduplicate_findings(normalized)
+        assert len(merged) == 1
+        assert merged[0]["recommendation"].startswith("Add 'X-Content-Type-Options")
+        assert "recommendation" not in first_details
+        assert first_details.get("deduplication_note") is None
