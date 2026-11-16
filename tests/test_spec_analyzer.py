@@ -116,6 +116,25 @@ async def test_extension_entries_are_validated():
 
 
 @pytest.mark.asyncio
+async def test_extension_uri_must_be_an_absolute_uri():
+    findings = await _findings(
+        {
+            "extensions": [
+                {"uri": "not a uri"},
+                {"uri": "/relative/path"},
+                {"uri": "urn:example:ext:traceability"},
+                {"uri": "https://example.com/ext/v1"},
+            ]
+        }
+    )
+    assert [f.summary for f in findings] == [
+        "Extension #1 'uri' is not a valid absolute URI: 'not a uri'",
+        "Extension #2 'uri' is not a valid absolute URI: '/relative/path'",
+    ]
+    assert {f.details["field"] for f in findings} == {"uri"}
+
+
+@pytest.mark.asyncio
 async def test_extended_agent_card_must_be_boolean():
     findings = await _findings({"extendedAgentCard": "true"})
     assert [f.threat_name for f in findings] == ["INVALID CAPABILITY VALUE"]

@@ -29,6 +29,10 @@ from urllib.parse import urlparse
 from .base import BaseAnalyzer, SecurityFinding
 from ...utils.logging_config import get_logger
 
+# RFC 3986 absolute URI: a scheme, a colon, then no whitespace. Accepts
+# https://..., urn:..., and other schemes extensions use as identifiers.
+_ABSOLUTE_URI_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:[^\s]+$")
+
 logger = get_logger(__name__)
 
 
@@ -457,6 +461,22 @@ class SpecComplianceAnalyzer(BaseAnalyzer):
                             "capability": "extensions",
                             "extension_index": i + 1,
                             "field": "uri",
+                            "location": location,
+                        },
+                    )
+                )
+            elif not _ABSOLUTE_URI_RE.match(uri):
+                findings.append(
+                    SecurityFinding(
+                        severity="MEDIUM",
+                        summary=f"Extension #{i+1} 'uri' is not a valid absolute URI: {uri!r}",
+                        threat_name="INVALID CAPABILITY VALUE",
+                        analyzer="Spec",
+                        details={
+                            "capability": "extensions",
+                            "extension_index": i + 1,
+                            "field": "uri",
+                            "uri": uri,
                             "location": location,
                         },
                     )
