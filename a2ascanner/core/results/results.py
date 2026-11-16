@@ -95,8 +95,14 @@ class ResultProcessor:
                     if "field_location" in first_match:
                         location = first_match["field_location"]
             
+            # Each missing security header is its own issue with its own fix,
+            # so findings for different headers are not merged.
+            missing_header = ""
+            if isinstance(details, dict) and details.get("missing_header"):
+                missing_header = str(details["missing_header"])
+
             # Create deduplication key
-            dedup_key = f"{threat_category}|{location}"
+            dedup_key = f"{threat_category}|{location}|{missing_header}"
             
             if dedup_key not in finding_groups:
                 finding_groups[dedup_key] = []

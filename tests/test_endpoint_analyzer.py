@@ -364,6 +364,43 @@ class TestResultProcessorMergeFields:
         assert set(result["detected_by_analyzers"]) == {"endpoint", "heuristic"}
 
 
+    def test_dedup_keeps_each_missing_header_with_its_recommendation(self):
+        """Findings for different missing headers are separate, each with its fix."""
+        from a2ascanner.core.analyzers.base import SecurityFinding
+        from a2ascanner.core.results.results import ResultProcessor
+
+        headers = {
+            "X-Content-Type-Options": "Add 'X-Content-Type-Options: nosniff' header",
+            "X-Frame-Options": "Add 'X-Frame-Options: DENY' or 'SAMEORIGIN' header",
+            "Strict-Transport-Security": "Add 'Strict-Transport-Security: max-age=31536000; includeSubDomains' header",
+        }
+        findings = [
+            SecurityFinding(
+                severity="MEDIUM",
+                summary=f"Missing {header} security header",
+                threat_name="MISSING SECURITY HEADERS",
+                analyzer="endpoint",
+                details={
+                    "endpoint": "https://example.com",
+                    "missing_header": header,
+                    "recommendation": recommendation,
+                },
+            )
+            for header, recommendation in headers.items()
+        ]
+        processor = ResultProcessor(deduplicate=True)
+        merged = processor.deduplicate_findings(
+            [processor.normalize_finding(f) for f in findings]
+        )
+        assert len(merged) == 3
+        assert {f["recommendation"] for f in merged} == set(headers.values())
+
+        # The same header reported twice is still merged into one finding.
+        again = processor.deduplicate_findings(
+            [processor.normalize_finding(f) for f in (findings[0], findings[0])]
+        )
+        assert len(again) == 1
+
     def test_merge_does_not_mutate_original_details(self):
         """Later recommendation must not rewrite the first finding's details dict."""
         from a2ascanner.core.analyzers.base import SecurityFinding
