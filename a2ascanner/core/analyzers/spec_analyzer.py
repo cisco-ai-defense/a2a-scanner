@@ -29,6 +29,10 @@ from urllib.parse import urlparse
 from .base import BaseAnalyzer, SecurityFinding
 from ...utils.logging_config import get_logger
 
+# RFC 3986 absolute URI: a scheme, a colon, then no whitespace. Accepts
+# https://..., urn:..., and other schemes extensions use as identifiers.
+_ABSOLUTE_URI_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:[^\s]+$")
+
 logger = get_logger(__name__)
 
 
@@ -306,10 +310,12 @@ class SpecComplianceAnalyzer(BaseAnalyzer):
     ) -> List[SecurityFinding]:
         """Validate capabilities structure.
 
-        Per A2A spec, capabilities is an optional object with boolean flags:
+        Per A2A spec, capabilities is an optional object with these fields:
         - streaming: boolean
         - pushNotifications: boolean
-        - stateTransitionHistory: boolean
+        - stateTransitionHistory: boolean (0.3)
+        - extendedAgentCard: boolean (1.0)
+        - extensions: array of AgentExtension objects, each with a "uri"
 
         Args:
             card_data: Agent card dictionary
@@ -344,13 +350,19 @@ class SpecComplianceAnalyzer(BaseAnalyzer):
             return findings
 
         # Check known capability fields
-        known_capabilities = [
+        boolean_capabilities = [
             "streaming",
             "pushNotifications",
             "stateTransitionHistory",
+            "extendedAgentCard",
         ]
+        known_capabilities = boolean_capabilities + ["extensions"]
 
         for cap_name, cap_value in capabilities.items():
+            if cap_name == "extensions":
+                findings.extend(self._check_extensions(cap_value, location))
+                continue
+
             # Warn about unknown capabilities
             if cap_name not in known_capabilities:
                 findings.append(
@@ -379,6 +391,110 @@ class SpecComplianceAnalyzer(BaseAnalyzer):
                             "capability": cap_name,
                             "expected_type": "boolean",
                             "actual_type": type(cap_value).__name__,
+                            "location": location,
+                        },
+                    )
+                )
+
+        return findings
+
+    def _check_extensions(
+        self, extensions: Any, location: str = "agent_card"
+    ) -> List[SecurityFinding]:
+        """Validate capabilities.extensions.
+
+        Per A2A spec, extensions is an array of AgentExtension objects. Each
+        one needs a "uri" string; "required" is an optional boolean.
+
+        Args:
+            extensions: Value of capabilities.extensions
+            location: Location string
+
+        Returns:
+            List of security findings
+        """
+        findings: List[SecurityFinding] = []
+
+        if not isinstance(extensions, list):
+            findings.append(
+                SecurityFinding(
+                    severity="MEDIUM",
+                    summary=f"Capability 'extensions' must be an array, got {type(extensions).__name__}",
+                    threat_name="INVALID CAPABILITY VALUE",
+                    analyzer="Spec",
+                    details={
+                        "capability": "extensions",
+                        "expected_type": "array",
+                        "actual_type": type(extensions).__name__,
+                        "location": location,
+                    },
+                )
+            )
+            return findings
+
+        for i, extension in enumerate(extensions):
+            if not isinstance(extension, dict):
+                findings.append(
+                    SecurityFinding(
+                        severity="MEDIUM",
+                        summary=f"Extension #{i+1} must be an object, got {type(extension).__name__}",
+                        threat_name="INVALID CAPABILITY VALUE",
+                        analyzer="Spec",
+                        details={
+                            "capability": "extensions",
+                            "extension_index": i + 1,
+                            "location": location,
+                        },
+                    )
+                )
+                continue
+
+            uri = extension.get("uri")
+            if not isinstance(uri, str) or not uri.strip():
+                findings.append(
+                    SecurityFinding(
+                        severity="MEDIUM",
+                        summary=f"Extension #{i+1} missing required field: 'uri'",
+                        threat_name="INVALID CAPABILITY VALUE",
+                        analyzer="Spec",
+                        details={
+                            "capability": "extensions",
+                            "extension_index": i + 1,
+                            "field": "uri",
+                            "location": location,
+                        },
+                    )
+                )
+            elif not _ABSOLUTE_URI_RE.match(uri):
+                findings.append(
+                    SecurityFinding(
+                        severity="MEDIUM",
+                        summary=f"Extension #{i+1} 'uri' is not a valid absolute URI: {uri!r}",
+                        threat_name="INVALID CAPABILITY VALUE",
+                        analyzer="Spec",
+                        details={
+                            "capability": "extensions",
+                            "extension_index": i + 1,
+                            "field": "uri",
+                            "uri": uri,
+                            "location": location,
+                        },
+                    )
+                )
+
+            if "required" in extension and not isinstance(extension["required"], bool):
+                findings.append(
+                    SecurityFinding(
+                        severity="LOW",
+                        summary=f"Extension #{i+1} 'required' must be boolean, got {type(extension['required']).__name__}",
+                        threat_name="INVALID CAPABILITY VALUE",
+                        analyzer="Spec",
+                        details={
+                            "capability": "extensions",
+                            "extension_index": i + 1,
+                            "field": "required",
+                            "expected_type": "boolean",
+                            "actual_type": type(extension["required"]).__name__,
                             "location": location,
                         },
                     )
