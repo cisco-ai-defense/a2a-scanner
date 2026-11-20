@@ -47,8 +47,8 @@ classifiers = [
 dependencies = [
     "fastapi==0.115.6",
     "httpx==0.28.1",
-    "litellm==1.95.0",
-    "pydantic==2.10.6",
+    "litellm==1.108.13",
+    "pydantic==2.12.5",
     "python-dotenv==1.0.1",
     "python-multipart==0.0.20",
     "PyYAML==6.0.3",
